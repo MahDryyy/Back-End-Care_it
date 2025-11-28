@@ -32,3 +32,53 @@ func (TarifBPJSRawatInap) TableName() string {
 func (TarifRS) TableName() string {
 	return "tarif_rs"
 }
+
+// ICD9
+
+type ICD9 struct {
+	Kode_ICD9 string `gorm:"column:ID_ICD9"`
+	Prosedur string `gorm:"column:Prosedur"`
+	Versi string `gorm:"column:Versi_ICD9"`
+}
+
+func (ICD9) TableName() string {
+	return "icd9"
+}
+
+// ICD10
+type ICD10 struct {
+	Kode_ICD10 string `gorm:"column:ID_ICD10"`
+	Diagnosa string `gorm:"column:Diagnosa"`
+	Versi string `gorm:"column:Versi_ICD10"`
+}
+
+func (ICD10) TableName() string {
+	return "icd10"
+}
+
+// ruangan
+type Ruangan struct {
+	ID_Ruangan string `gorm:"column:ID_Ruangan"`
+	Jenis_Ruangan string `gorm:"column:Jenis_Ruangan"`
+	Nama_Ruangan string `gorm:"column:Nama_Ruangan"`
+
+}
+
+func (Ruangan) TableName() string {
+	return "ruangan"
+}
+
+// dokter
+type Dokter struct {
+	ID_Dokter string `gorm:"column:ID_Dokter"`
+	Nama_Dokter string `gorm:"column:Nama_Dokter"`
+	Password string `gorm:"column:Password"`
+	Status string `gorm:"column:Status"`
+	KSM string `gorm:"column:KSM"`
+	Email_UB string `gorm:"column:Email_UB"`
+	Email_Pribadi string `gorm:"column:Email_Pribadi"`
+}
+
+func (Dokter) TableName() string {
+	return "dokter"
+}

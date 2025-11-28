@@ -9,6 +9,10 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine) {
+	r.GET("/dokter", listDokterHandler)
+	r.GET("/ruangan", listRuanganHandler)
+	r.GET("/icd10", listICD10Handler)
+	r.GET("/icd9", listICD9Handler)
 	r.GET("/", healthHandler)
 	r.GET("/tarifBPJSRawatInap", listTarifBPJSRawatInapHandler)
 	r.GET("/tarifBPJS/:kode", detailTarifBPJSRawatInapHandler)
@@ -130,5 +134,57 @@ func listTarifRSByKategoriHandler(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusOK, data)
+}
+
+// ICD9
+func listICD9Handler(c *gin.Context) {
+	data, err := services.GetICD9()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Gagal mengambil data",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+// ICD10
+func listICD10Handler(c *gin.Context) {
+	data, err := services.GetICD10()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Gagal mengambil data",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+// ruangan
+func listRuanganHandler(c *gin.Context) {
+	data, err := services.GetRuangan()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Gagal mengambil data",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+// dokter
+func listDokterHandler(c *gin.Context) {
+	data, err := services.GetDokter()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Gagal mengambil data",
+		})
+		return
+	}
 	c.JSON(http.StatusOK, data)
 }

@@ -76,3 +76,43 @@ func GetTarifRSByKategori(kategori string) ([]models.TarifRS, error) {
 func IsNotFound(err error) bool {
 	return err == gorm.ErrRecordNotFound
 }
+
+// ICD9
+func GetICD9() ([]models.ICD9, error) {
+	var data []models.ICD9
+	if err := database.DB.Find(&data).Error; err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+// ICD10
+func GetICD10() ([]models.ICD10, error) {
+	var data []models.ICD10
+	if err := database.DB.Find(&data).Error; err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+// ruangan
+func GetRuangan() ([]models.Ruangan, error) {
+	var data []models.Ruangan
+	if err := database.DB.Find(&data).Error; err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+// dokter
+func GetDokter() ([]models.Dokter, error) {
+	var data []models.Dokter
+	if err := database.DB.Find(&data).Error; err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}

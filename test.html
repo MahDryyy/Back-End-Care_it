@@ -161,7 +161,24 @@
             color: white;
         }
 
-        #response {
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .view-toggle button {
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .view-toggle button.active {
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 5px 15px rgba(102, 126, 234, 0.4);
+            transform: translateY(-1px);
+        }
+
+        #response,
+        #tableResponse {
             background: #f5f5f5;
             border: 1px solid #ddd;
             border-radius: 5px;
@@ -172,6 +189,40 @@
             font-size: 0.9em;
             white-space: pre-wrap;
             word-wrap: break-word;
+        }
+
+        #tableResponse {
+            display: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        thead {
+            background: #667eea;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        th, td {
+            padding: 8px 10px;
+            border: 1px solid #eee;
+            text-align: left;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        tbody tr:hover {
+            background: #f1f5ff;
         }
 
         .health-check {
@@ -283,13 +334,94 @@
                 </div>
             </div>
 
+            <!-- ICD9 -->
+            <div class="section">
+                <div class="section-header">🧬 Kode Tindakan ICD9</div>
+                <div class="section-content">
+                    <div class="endpoint-group">
+                        <div class="endpoint-item">
+                            <button class="btn-list" onclick="getICD9()">List Semua Kode ICD9</button>
+                        </div>
+                        <div class="endpoint-item">
+                            <label>Filter (client side, berdasarkan teks):</label>
+                            <input type="text" id="filterICD9" placeholder="Ketik untuk filter di tabel..." oninput="filterICD9ClientSide()">
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85em; color: #666; margin-top: 10px;">
+                        Data diambil dari endpoint <code>/icd9</code>. Tabel di bawah akan otomatis menyesuaikan kolom dari field JSON (misal: kode, deskripsi, dll).
+                    </p>
+                </div>
+            </div>
+
+            <!-- ICD10 -->
+            <div class="section">
+                <div class="section-header">🩺 Kode Diagnosis ICD10</div>
+                <div class="section-content">
+                    <div class="endpoint-group">
+                        <div class="endpoint-item">
+                            <button class="btn-list" onclick="getICD10()">List Semua Kode ICD10</button>
+                        </div>
+                        <div class="endpoint-item">
+                            <label>Filter (client side, berdasarkan teks):</label>
+                            <input type="text" id="filterICD10" placeholder="Ketik untuk filter di tabel..." oninput="filterICD10ClientSide()">
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85em; color: #666; margin-top: 10px;">
+                        Data diambil dari endpoint <code>/icd10</code>. Tabel di bawah akan otomatis menyesuaikan kolom dari field JSON.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Dokter -->
+            <div class="section">
+                <div class="section-header">👨‍⚕️ Data Dokter</div>
+                <div class="section-content">
+                    <div class="endpoint-group">
+                        <div class="endpoint-item">
+                            <button class="btn-list" onclick="getDokter()">List Semua Dokter</button>
+                        </div>
+                        <div class="endpoint-item">
+                            <label>Filter (client side, berdasarkan teks):</label>
+                            <input type="text" id="filterDokter" placeholder="Ketik untuk filter di tabel..." oninput="filterDokterClientSide()">
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85em; color: #666; margin-top: 10px;">
+                        Data diambil dari endpoint <code>/dokter</code>. Tabel di bawah akan otomatis menyesuaikan kolom dari field JSON.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Ruangan -->
+            <div class="section">
+                <div class="section-header">🏥 Data Ruangan</div>
+                <div class="section-content">
+                    <div class="endpoint-group">
+                        <div class="endpoint-item">
+                            <button class="btn-list" onclick="getRuangan()">List Semua Ruangan</button>
+                        </div>
+                        <div class="endpoint-item">
+                            <label>Filter (client side, berdasarkan teks):</label>
+                            <input type="text" id="filterRuangan" placeholder="Ketik untuk filter di tabel..." oninput="filterRuanganClientSide()">
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85em; color: #666; margin-top: 10px;">
+                        Data diambil dari endpoint <code>/ruangan</code>. Tabel di bawah akan otomatis menyesuaikan kolom dari field JSON.
+                    </p>
+                </div>
+            </div>
+
             <!-- Response Area -->
             <div class="response-area">
                 <div class="response-header">
                     <h3>Response:</h3>
                     <span id="statusBadge" class="status-badge" style="display: none;"></span>
                 </div>
+                <div class="view-toggle">
+                    <button id="btnJsonView" class="active" onclick="setViewMode('json')">JSON</button>
+                    <button id="btnTableView" onclick="setViewMode('table')">Table (Auto)</button>
+                </div>
                 <div id="response"></div>
+                <div id="tableResponse"></div>
             </div>
         </div>
     </div>
@@ -299,13 +431,92 @@
 
         function showResponse(data, status = 'ok') {
             const responseDiv = document.getElementById('response');
+            const tableDiv = document.getElementById('tableResponse');
             const statusBadge = document.getElementById('statusBadge');
             
+            // Tampilkan JSON mentah
             responseDiv.textContent = JSON.stringify(data, null, 2);
+
+            // Coba render tabel
+            renderTable(data);
             
             statusBadge.style.display = 'inline-block';
             statusBadge.className = 'status-badge status-' + status;
             statusBadge.textContent = status === 'ok' ? '✓ Success' : status === 'loading' ? '⏳ Loading...' : '✗ Error';
+        }
+
+        function setViewMode(mode) {
+            const responseDiv = document.getElementById('response');
+            const tableDiv = document.getElementById('tableResponse');
+            const btnJson = document.getElementById('btnJsonView');
+            const btnTable = document.getElementById('btnTableView');
+
+            if (mode === 'json') {
+                responseDiv.style.display = 'block';
+                tableDiv.style.display = 'none';
+                btnJson.classList.add('active');
+                btnTable.classList.remove('active');
+            } else {
+                responseDiv.style.display = 'none';
+                tableDiv.style.display = 'block';
+                btnJson.classList.remove('active');
+                btnTable.classList.add('active');
+            }
+        }
+
+        function renderTable(data) {
+            const tableDiv = document.getElementById('tableResponse');
+
+            // Reset isi
+            tableDiv.innerHTML = '';
+
+            // Hanya render tabel untuk array of objects
+            if (!Array.isArray(data) || data.length === 0 || typeof data[0] !== 'object') {
+                setViewMode('json');
+                return;
+            }
+
+            const keys = Array.from(
+                data.reduce((set, item) => {
+                    Object.keys(item || {}).forEach(k => set.add(k));
+                    return set;
+                }, new Set())
+            );
+
+            if (keys.length === 0) {
+                setViewMode('json');
+                return;
+            }
+
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const tbody = document.createElement('tbody');
+
+            const headerRow = document.createElement('tr');
+            keys.forEach(key => {
+                const th = document.createElement('th');
+                th.textContent = key;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                keys.forEach(key => {
+                    const td = document.createElement('td');
+                    const value = row && key in row ? row[key] : '';
+                    td.textContent = typeof value === 'object' ? JSON.stringify(value) : value;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            tableDiv.appendChild(table);
+
+            // Auto switch ke view tabel
+            setViewMode('table');
         }
 
         async function checkHealth() {
@@ -427,6 +638,114 @@
             } catch (error) {
                 showResponse({ error: error.message }, 'error');
             }
+        }
+
+        async function getICD9() {
+            try {
+                showResponse('Loading...', 'loading');
+                const response = await fetch(`${API_BASE}/icd9`);
+                const data = await response.json();
+                showResponse(data, response.ok ? 'ok' : 'error');
+            } catch (error) {
+                showResponse({ error: error.message }, 'error');
+            }
+        }
+
+        function filterICD9ClientSide() {
+            const input = document.getElementById('filterICD9');
+            const filter = input.value.toLowerCase();
+            const tableDiv = document.getElementById('tableResponse');
+            const table = tableDiv.querySelector('table');
+            if (!table) {
+                return;
+            }
+
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(filter) ? '' : 'none';
+            });
+        }
+
+        async function getICD10() {
+            try {
+                showResponse('Loading...', 'loading');
+                const response = await fetch(`${API_BASE}/icd10`);
+                const data = await response.json();
+                showResponse(data, response.ok ? 'ok' : 'error');
+            } catch (error) {
+                showResponse({ error: error.message }, 'error');
+            }
+        }
+
+        function filterICD10ClientSide() {
+            const input = document.getElementById('filterICD10');
+            const filter = input.value.toLowerCase();
+            const tableDiv = document.getElementById('tableResponse');
+            const table = tableDiv.querySelector('table');
+            if (!table) {
+                return;
+            }
+
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(filter) ? '' : 'none';
+            });
+        }
+
+        async function getDokter() {
+            try {
+                showResponse('Loading...', 'loading');
+                const response = await fetch(`${API_BASE}/dokter`);
+                const data = await response.json();
+                showResponse(data, response.ok ? 'ok' : 'error');
+            } catch (error) {
+                showResponse({ error: error.message }, 'error');
+            }
+        }
+
+        function filterDokterClientSide() {
+            const input = document.getElementById('filterDokter');
+            const filter = input.value.toLowerCase();
+            const tableDiv = document.getElementById('tableResponse');
+            const table = tableDiv.querySelector('table');
+            if (!table) {
+                return;
+            }
+
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(filter) ? '' : 'none';
+            });
+        }
+
+        async function getRuangan() {
+            try {
+                showResponse('Loading...', 'loading');
+                const response = await fetch(`${API_BASE}/ruangan`);
+                const data = await response.json();
+                showResponse(data, response.ok ? 'ok' : 'error');
+            } catch (error) {
+                showResponse({ error: error.message }, 'error');
+            }
+        }
+
+        function filterRuanganClientSide() {
+            const input = document.getElementById('filterRuangan');
+            const filter = input.value.toLowerCase();
+            const tableDiv = document.getElementById('tableResponse');
+            const table = tableDiv.querySelector('table');
+            if (!table) {
+                return;
+            }
+
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(filter) ? '' : 'none';
+            });
         }
 
         // Auto check health on load
