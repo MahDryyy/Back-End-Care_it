@@ -11,7 +11,7 @@ import (
 var DB *gorm.DB
 
 func KonekDB() (*gorm.DB, error) {
-	dsn := "root:@tcp(localhost:3306)/care_it?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := "root:@tcp(localhost:3306)/care_it_data?charset=utf8mb4&parseTime=True&loc=Local"
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {

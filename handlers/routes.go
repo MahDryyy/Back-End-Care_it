@@ -85,6 +85,14 @@ func detailTarifBPJSRawatJalanHandler(c *gin.Context) {
 	kode := c.Param("kode")
 	data, err := services.GetTarifBPJSRawatJalanByKode(kode)
 	if err != nil {
+		if services.IsNotFound(err) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"status":  "not_found",
+				"message": "Kode tidak ditemukan",
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status":  "error",
 			"message": "Gagal mengambil data",

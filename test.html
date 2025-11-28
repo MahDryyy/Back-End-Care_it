@@ -464,6 +464,30 @@
             }
         }
 
+        function formatRupiah(value) {
+            if (value === null || value === undefined || value === '') {
+                return '';
+            }
+            // Convert to number
+            const num = typeof value === 'string' ? parseFloat(value) : value;
+            if (isNaN(num)) {
+                return value;
+            }
+            // Format dengan pemisah ribuan
+            return 'Rp ' + num.toLocaleString('id-ID', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function isTarifColumn(key) {
+            const lowerKey = key.toLowerCase();
+            return lowerKey.includes('tarif') || 
+                   lowerKey.includes('harga') || 
+                   lowerKey.includes('kelas') ||
+                   lowerKey.includes('tarif_inacbg');
+        }
+
         function renderTable(data) {
             const tableDiv = document.getElementById('tableResponse');
 
@@ -505,7 +529,14 @@
                 keys.forEach(key => {
                     const td = document.createElement('td');
                     const value = row && key in row ? row[key] : '';
-                    td.textContent = typeof value === 'object' ? JSON.stringify(value) : value;
+                    
+                    // Format tarif dengan rupiah
+                    if (isTarifColumn(key) && (typeof value === 'number' || (typeof value === 'string' && !isNaN(value) && value !== ''))) {
+                        td.textContent = formatRupiah(value);
+                        td.style.textAlign = 'right';
+                    } else {
+                        td.textContent = typeof value === 'object' ? JSON.stringify(value) : value;
+                    }
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);

@@ -10,7 +10,7 @@ import (
 // Get tarif BPJS Rawat Inap
 func GetTarifBPJSRawatInap() ([]models.TarifBPJSRawatInap, error) {
 	var data []models.TarifBPJSRawatInap
-	if err := database.DB.Find(&data).Error; err != nil {
+	if err := database.DB.Model(&models.TarifBPJSRawatInap{}).Find(&data).Error; err != nil {
 		return nil, err
 	}
 
@@ -19,7 +19,7 @@ func GetTarifBPJSRawatInap() ([]models.TarifBPJSRawatInap, error) {
 
 func GetTarifBPJSRawatInapByKode(kode string) (*models.TarifBPJSRawatInap, error) {
 	var data models.TarifBPJSRawatInap
-	if err := database.DB.Where("Kode_INA_CBG = ?", kode).First(&data).Error; err != nil {
+	if err := database.DB.Model(&models.TarifBPJSRawatInap{}).Where("ID_INACBG_RI = ?", kode).First(&data).Error; err != nil {
 		return nil, err
 	}
 
@@ -38,7 +38,7 @@ func GetTarifBPJSRawatJalan() ([]models.TarifBPJSRawatJalan, error) {
 
 func GetTarifBPJSRawatJalanByKode(kode string) (*models.TarifBPJSRawatJalan, error) {
 	var data models.TarifBPJSRawatJalan
-	if err := database.DB.Where("Kode_INA_CBG = ?", kode).First(&data).Error; err != nil {
+	if err := database.DB.Where("ID_INACBG_RJ = ?", kode).First(&data).Error; err != nil {
 		return nil, err
 	}
 
@@ -57,7 +57,7 @@ func GetTarifRS() ([]models.TarifRS, error) {
 
 func GetTarifRSByKode(kode string) (*models.TarifRS, error) {
 	var data models.TarifRS
-	if err := database.DB.Where("Kode = ?", kode).First(&data).Error; err != nil {
+	if err := database.DB.Where("ID_Tarif_RS = ?", kode).First(&data).Error; err != nil {
 		return nil, err
 	}
 
@@ -66,7 +66,7 @@ func GetTarifRSByKode(kode string) (*models.TarifRS, error) {
 
 func GetTarifRSByKategori(kategori string) ([]models.TarifRS, error) {
 	var data []models.TarifRS
-	if err := database.DB.Where("Kategori = ?", kategori).Find(&data).Error; err != nil {
+	if err := database.DB.Where("Kategori_RS = ?", kategori).Find(&data).Error; err != nil {
 		return nil, err
 	}
 
