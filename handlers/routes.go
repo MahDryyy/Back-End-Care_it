@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
+	"main.go/models"
 	"main.go/services"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +23,8 @@ func RegisterRoutes(r *gin.Engine) {
 	r.GET("/tarifRS", listTarifRSHandler)
 	r.GET("/tarifRS/:kode", detailTarifRSHandler)
 	r.GET("/tarifRSByKategori/:kategori", listTarifRSByKategoriHandler)
+	r.GET("/pasien/:id", GetPasien)
+	r.POST("/billing", CreateBillingHandler)
 }
 
 // Health check
@@ -195,4 +199,81 @@ func listDokterHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, data)
+}
+
+//Liat pasien sudah atau belum
+
+func GetPasien(c *gin.Context) {
+	idStr := c.Param("id")
+
+	// Konversi string ke int
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"message": "ID pasien harus berupa angka",
+		})
+		return
+	}
+
+	pasien, err := services.GetPasienByID(id)
+	if err != nil {
+		c.JSON(404, gin.H{
+			"message": "Pasien tidak ditemukan",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message": "Data pasien ditemukan",
+		"data":    pasien,
+	})
+}
+
+//add pasien baru
+
+// CreateBillingHandler handler untuk membuat billing baru dari data frontend
+func CreateBillingHandler(c *gin.Context) {
+	var input models.BillingRequest
+
+	// Cek Content-Type
+	contentType := c.GetHeader("Content-Type")
+	if contentType != "application/json" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "Content-Type harus application/json",
+			"error":   "Content-Type yang diterima: " + contentType,
+		})
+		return
+	}
+
+	// Bind JSON dari request body
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "Data tidak valid",
+			"error":   err.Error(),
+			"hint":    "Pastikan semua field required terisi dan format JSON benar",
+		})
+		return
+	}
+
+	// Panggil service untuk memproses data
+	billing, pasien, err := services.DataFromFE(input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Gagal membuat billing",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Billing berhasil dibuat",
+		"data": gin.H{
+			"billing": billing,
+			"pasien":  pasien,
+		},
+	})
 }

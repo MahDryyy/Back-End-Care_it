@@ -22,8 +22,9 @@ func main() {
 	r.Use(cors.Default())
 	handlers.RegisterRoutes(r)
 
-	port := ":8081"
-	fmt.Printf("Server berjalan di http://localhost%s\n", port)
+	port := "0.0.0.0:8081"
+	fmt.Printf("Server berjalan di http://0.0.0.0:8081\n")
+	fmt.Println("Akses dari jaringan lain menggunakan IP lokal komputer + port 8081")
 	if err := r.Run(port); err != nil {
 		log.Fatal("Gagal menjalankan server:", err)
 	}
