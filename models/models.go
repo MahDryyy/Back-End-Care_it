@@ -150,19 +150,19 @@ func (BillingPasien) TableName() string {
 	return "billing_pasien"
 }
 
-// BillingRequest untuk menerima data dari API
+// BillingRequest untuk menerima data dari frontend
 type BillingRequest struct {
-	Nama_Dokter    string `json:"nama_dokter" binding:"required"`
-	Nama_Pasien    string `json:"nama_pasien" binding:"required"`
-	Jenis_Kelamin  string `json:"jenis_kelamin" binding:"required"`
-	Usia           int    `json:"usia" binding:"required"`
-	Ruangan        string `json:"ruangan" binding:"required"`
-	Kelas          string `json:"kelas" binding:"required"`
-	Tindakan_RS    string `json:"tindakan_rs" binding:"required"`
-	ICD9           string `json:"icd9" binding:"required"`
-	ICD10          string `json:"icd10" binding:"required"`
-	Cara_Bayar     string `json:"cara_bayar" binding:"required"`
-	Total_Tarif_RS int    `json:"total_tarif_rs"`
+	Nama_Dokter    string   `json:"nama_dokter" binding:"required"`
+	Nama_Pasien    string   `json:"nama_pasien" binding:"required"`
+	Jenis_Kelamin  string   `json:"jenis_kelamin" binding:"required"`
+	Usia           int      `json:"usia" binding:"required"`
+	Ruangan        string   `json:"ruangan" binding:"required"`
+	Kelas          string   `json:"kelas" binding:"required"`
+	Tindakan_RS    []string `json:"tindakan_rs" binding:"required"`
+	ICD9           []string `json:"icd9" binding:"required"`
+	ICD10          []string `json:"icd10" binding:"required"`
+	Cara_Bayar     string   `json:"cara_bayar" binding:"required"`
+	Total_Tarif_RS int      `json:"total_tarif_rs"`
 }
 
 // admin ruangan
@@ -178,4 +178,34 @@ func (admin_ruangan) TableName() string {
 	return "admin_ruangan"
 }
 
-// inputan dari FE
+// billing_Tidakan
+
+type Billing_Tindakan struct {
+	ID_Billing  int    `gorm:"column:ID_Billing"`
+	ID_Tarif_RS string `gorm:"column:ID_Tarif_RS"`
+}
+
+func (Billing_Tindakan) TableName() string {
+	return "billing_tindakan"
+}
+
+// billing_ICD9 dan ICD10
+
+type Billing_ICD9 struct {
+	ID_Billing int    `gorm:"column:ID_Billing"`
+	ID_ICD9    string `gorm:"column:ID_ICD9"`
+}
+
+type Billing_ICD10 struct {
+	ID_Billing int    `gorm:"column:ID_Billing"`
+	ID_ICD10   string `gorm:"column:ID_ICD10"`
+}
+
+func (Billing_ICD9) TableName() string {
+	return "billing_icd9"
+}
+func (Billing_ICD10) TableName() string {
+	return "billing_icd10"
+}
+
+//

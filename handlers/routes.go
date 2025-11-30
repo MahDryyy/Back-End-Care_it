@@ -235,7 +235,7 @@ func GetPasien(c *gin.Context) {
 func CreateBillingHandler(c *gin.Context) {
 	var input models.BillingRequest
 
-	// Cek Content-Type
+	// Pastikan JSON
 	contentType := c.GetHeader("Content-Type")
 	if contentType != "application/json" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -246,19 +246,20 @@ func CreateBillingHandler(c *gin.Context) {
 		return
 	}
 
-	// Bind JSON dari request body
+	// Bind JSON ke struct
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  "error",
 			"message": "Data tidak valid",
 			"error":   err.Error(),
-			"hint":    "Pastikan semua field required terisi dan format JSON benar",
 		})
 		return
 	}
 
-	// Panggil service untuk memproses data
-	billing, pasien, err := services.DataFromFE(input)
+	// Panggil service → return 5 data
+	billing, pasien, tindakanList, icd9List, icd10List, err :=
+		services.DataFromFE(input)
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status":  "error",
@@ -268,12 +269,17 @@ func CreateBillingHandler(c *gin.Context) {
 		return
 	}
 
+	// Response lengkap ke FE
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "success",
 		"message": "Billing berhasil dibuat",
 		"data": gin.H{
-			"billing": billing,
-			"pasien":  pasien,
+			"pasien":      pasien,
+			"billing":     billing,
+			"tindakan_rs": tindakanList,
+			"icd9":        icd9List,
+			"icd10":       icd10List,
 		},
 	})
 }
+
