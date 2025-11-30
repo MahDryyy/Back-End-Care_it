@@ -26,8 +26,6 @@ func GetTarifRSByTindakan(tindakans []string) ([]models.TarifRS, error) {
 	return tarifList, nil
 }
 
-
-
 // GetPasienByID mencari pasien berdasarkan ID
 func GetPasienByID(id int) (*models.Pasien, error) {
 	var pasien models.Pasien
@@ -49,7 +47,7 @@ func GetPasienByNama(nama string) (*models.Pasien, error) {
 
 	return &pasien, nil
 }
- 
+
 // GetDokterByNama mencari dokter berdasarkan nama
 func GetDokterByNama(nama string) (*models.Dokter, error) {
 	var dokter models.Dokter
@@ -59,7 +57,7 @@ func GetDokterByNama(nama string) (*models.Dokter, error) {
 	}
 
 	return &dokter, nil
-} 
+}
 
 func DataFromFE(input models.BillingRequest) (
 	*models.BillingPasien,
@@ -234,4 +232,3 @@ func DataFromFE(input models.BillingRequest) (
 
 	return &billing, &pasien, billingTindakanList, billingICD9List, billingICD10List, nil
 }
-
