@@ -78,6 +78,14 @@
                     <option value="3">Kelas 3</option>
                 </select>
             </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Cara Bayar</label>
+                <select class="form-select" id="cara_bayar" name="cara_bayar">
+                    <option value="">-- Pilih Cara Bayar --</option>
+                    <option value="BPJS">BPJS</option>
+                    <option value="UMUM">Umum</option>
+                </select>
+            </div>
                 </div>
 
                 <!-- TINDAKAN -->
@@ -142,6 +150,8 @@
                     </div>
                     <small class="text-muted">Total akan dihitung otomatis berdasarkan tindakan yang dipilih</small>
                 </div>
+                
+                <div id="formAlert" class="alert d-none" role="alert"></div>
                 
                 <div class="d-grid gap-2 mt-4">
                     <button type="submit" class="btn btn-primary btn-lg">

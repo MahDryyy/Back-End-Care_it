@@ -1051,9 +1051,124 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         initAllDropdowns();
         loadAllSelects();
+        initBillingFormSubmission();
     });
 } else {
     initAllDropdowns();
     loadAllSelects();
+    initBillingFormSubmission();
+}
+
+// ============= FORM SUBMISSION =============
+function initBillingFormSubmission() {
+    const form = document.getElementById('bpjsForm');
+    if (!form) return;
+
+    const alertBox = document.getElementById('formAlert');
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    function showFormAlert(type, message) {
+        if (!alertBox) return;
+        alertBox.className = `alert alert-${type}`;
+        alertBox.innerHTML = message;
+        alertBox.classList.remove('d-none');
+    }
+
+    function hideFormAlert() {
+        if (!alertBox) return;
+        alertBox.classList.add('d-none');
+        alertBox.textContent = '';
+    }
+
+    function getDropdownValue(id) {
+        if (dropdownInstances[id]) {
+            const value = dropdownInstances[id].getValue();
+            if (Array.isArray(value)) {
+                return value
+                    .map(v => (v || '').toString().trim())
+                    .filter(Boolean);
+            }
+            return (value || '').toString().trim();
+        }
+        const input = document.getElementById(id);
+        return input ? input.value.trim() : '';
+    }
+
+    function parseInteger(value) {
+        if (typeof value !== 'string') {
+            return Number.isFinite(value) ? value : 0;
+        }
+        const numeric = value.replace(/[^\d]/g, '');
+        return numeric ? parseInt(numeric, 10) : 0;
+    }
+
+    form.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        hideFormAlert();
+
+        const payload = {
+            nama_dokter: getDropdownValue('nama_dokter'),
+            nama_pasien: (document.getElementById('nama_pasien')?.value || '').trim(),
+            jenis_kelamin: (document.getElementById('jenis_kelamin')?.value || '').trim(),
+            usia: parseInteger(document.getElementById('usia')?.value || '0'),
+            ruangan: getDropdownValue('ruangan'),
+            kelas: (document.getElementById('kelas')?.value || '').trim(),
+            tindakan_rs: getDropdownValue('tarif_rs'),
+            icd9: getDropdownValue('icd9'),
+            icd10: getDropdownValue('icd10'),
+            cara_bayar: (document.getElementById('cara_bayar')?.value || '').trim(),
+            total_tarif_rs: parseInteger(document.getElementById('total_tarif_rs')?.value || '0'),
+        };
+
+        const errors = [];
+        if (!payload.nama_dokter) errors.push('Nama Dokter wajib dipilih.');
+        if (!payload.nama_pasien) errors.push('Nama Pasien wajib diisi.');
+        if (!payload.jenis_kelamin) errors.push('Jenis Kelamin wajib diisi.');
+        if (!payload.usia) errors.push('Usia wajib diisi.');
+        if (!payload.ruangan) errors.push('Ruangan wajib dipilih.');
+        if (!payload.kelas) errors.push('Kelas wajib dipilih.');
+        if (!Array.isArray(payload.tindakan_rs) || payload.tindakan_rs.length === 0) errors.push('Pilih minimal satu Tindakan RS.');
+        if (!Array.isArray(payload.icd9) || payload.icd9.length === 0) errors.push('Pilih minimal satu ICD 9.');
+        if (!Array.isArray(payload.icd10) || payload.icd10.length === 0) errors.push('Pilih minimal satu ICD 10.');
+        if (!payload.cara_bayar) errors.push('Cara Bayar wajib dipilih.');
+
+        if (errors.length > 0) {
+            showFormAlert('danger', `<ul class="mb-0"><li>${errors.join('</li><li>')}</li></ul>`);
+            return;
+        }
+
+        let originalBtnHtml = '';
+        if (submitBtn) {
+            originalBtnHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyimpan...';
+        }
+
+        try {
+            const response = await fetchWithTimeout(`${API_BASE}/billing`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result.status !== 'success') {
+                const message = result?.error || result?.message || 'Gagal menyimpan data billing.';
+                throw new Error(message);
+            }
+
+            showFormAlert('success', result.message || 'Billing berhasil dibuat.');
+        } catch (error) {
+            console.error('Error submitting billing form:', error);
+            showFormAlert('danger', error.message || 'Terjadi kesalahan saat menyimpan data.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml || '💾 Simpan Data';
+            }
+        }
+    });
 }
 

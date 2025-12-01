@@ -208,4 +208,4 @@ func (Billing_ICD10) TableName() string {
 	return "billing_icd10"
 }
 
-// 
+// Request ubtuk data 
