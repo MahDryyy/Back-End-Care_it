@@ -136,10 +136,34 @@ func DataFromFE(input models.BillingRequest) (
 	}
 
 	now := time.Now()
+	// Parse Tanggal_Keluar (frontend sends string). Accept multiple formats.
+	var keluarPtr *time.Time
+	if input.Tanggal_Keluar != "" && input.Tanggal_Keluar != "null" {
+		s := input.Tanggal_Keluar
+		// Try several common layouts
+		var parsed time.Time
+		var err error
+		layouts := []string{time.RFC3339, "2006-01-02 15:04:05", "2006-01-02"}
+		for _, layout := range layouts {
+			parsed, err = time.Parse(layout, s)
+			if err == nil {
+				t := parsed
+				keluarPtr = &t
+				break
+			}
+		}
+		if keluarPtr == nil {
+			// If parsing failed, return error
+			tx.Rollback()
+			return nil, nil, nil, nil, nil, fmt.Errorf("invalid tanggal_keluar format: %s", input.Tanggal_Keluar)
+		}
+	}
+
 	billing := models.BillingPasien{
 		ID_Pasien:        pasien.ID_Pasien,
 		Cara_Bayar:       input.Cara_Bayar,
 		Tanggal_masuk:    &now,
+		Tanggal_keluar:   keluarPtr,
 		ID_Dokter:        dokter.ID_Dokter,
 		Total_Tarif_RS:   input.Total_Tarif_RS,
 		Total_Tarif_BPJS: 0,

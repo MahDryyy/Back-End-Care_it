@@ -126,7 +126,7 @@ type BillingPasien struct {
 	Tanggal_masuk    *time.Time `gorm:"column:Tanggal_Masuk"`
 	Tanggal_keluar   *time.Time `gorm:"column:Tanggal_Keluar"`
 	ID_Dokter        int        `gorm:"column:ID_Dokter"`
-	Total_Tarif_RS   int        `gorm:"column:Total_Tarif_RS"`
+	Total_Tarif_RS   float64    `gorm:"column:Total_Tarif_RS"`
 	Total_Tarif_BPJS float64    `gorm:"column:Total_klaim"`
 	Billing_sign     string     `gorm:"column:Billing_sign"`
 }
@@ -159,10 +159,11 @@ type BillingRequest struct {
 	Ruangan        string   `json:"ruangan" binding:"required"`
 	Kelas          string   `json:"kelas" binding:"required"`
 	Tindakan_RS    []string `json:"tindakan_rs" binding:"required"`
+	Tanggal_Keluar string   `json:"tanggal_keluar" binding:"required"`
 	ICD9           []string `json:"icd9" binding:"required"`
 	ICD10          []string `json:"icd10" binding:"required"`
 	Cara_Bayar     string   `json:"cara_bayar" binding:"required"`
-	Total_Tarif_RS int      `json:"total_tarif_rs"`
+	Total_Tarif_RS float64  `json:"total_tarif_rs"`
 }
 
 // admin ruangan
@@ -208,4 +209,21 @@ func (Billing_ICD10) TableName() string {
 	return "billing_icd10"
 }
 
-// Request ubtuk data 
+// Request untuk tampilan data Admin ( pengisian inacbg)
+type Request_Admin_Inacbg struct {
+	ID_Billing     int      `json:"id_billing"`
+	Nama_pasien    string   `json:"nama_pasien"`
+	ID_Pasien      int      `json:"id_pasien"`
+	Kelas          string   `json:"Kelas"`
+	Ruangan        string   `json:"ruangan"`
+	Total_Tarif_RS float64  `json:"total_tarif_rs"`
+	Tindakan_RS    []string `json:"tindakan_rs"`
+	ICD9           []string `json:"icd9"`
+	ICD10          []string `json:"icd10"`
+}
+
+type post_inacbg_admin struct {
+	ID_Billing  int     `json:"id_billing"`
+	Kode_INACBG string  `json:"kode_inacbg"`
+	Total_klaim float64 `json:"total_klaim"`
+}

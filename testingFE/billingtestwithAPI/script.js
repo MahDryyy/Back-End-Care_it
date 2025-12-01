@@ -1,5 +1,5 @@
 // ============= CONFIGURATION =============
-const API_BASE = "http://localhost:8081";
+const API_BASE = "http://192.168.1.10:8081";
 const FETCH_TIMEOUT = 10000;
 
 // ============= UTILITY FUNCTIONS =============
@@ -1102,6 +1102,107 @@ function initBillingFormSubmission() {
         return numeric ? parseInt(numeric, 10) : 0;
     }
 
+    // Draft storage key
+    const DRAFT_KEY = 'billingDraft_v1';
+
+    function getFormDataForDraft() {
+        return {
+            nama_dokter: getDropdownValue('nama_dokter'),
+            nama_pasien: (document.getElementById('nama_pasien')?.value || '').trim(),
+            jenis_kelamin: (document.getElementById('jenis_kelamin')?.value || '').trim(),
+            usia: parseInteger(document.getElementById('usia')?.value || '0'),
+            ruangan: getDropdownValue('ruangan'),
+            kelas: (document.getElementById('kelas')?.value || '').trim(),
+            tindakan_rs: getDropdownValue('tarif_rs'),
+            tanggal_keluar: (document.getElementById('tanggal_keluar')?.value || '').trim(),
+            icd9: getDropdownValue('icd9'),
+            icd10: getDropdownValue('icd10'),
+            cara_bayar: (document.getElementById('cara_bayar')?.value || '').trim(),
+            total_tarif_rs: parseInteger(document.getElementById('total_tarif_rs')?.value || '0'),
+        };
+    }
+
+    function saveDraftToStorage() {
+        try {
+            const data = getFormDataForDraft();
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+            updateDraftStatus('Draft disimpan');
+            return true;
+        } catch (e) {
+            console.error('Gagal menyimpan draft:', e);
+            updateDraftStatus('Gagal menyimpan draft');
+            return false;
+        }
+    }
+
+    function clearDraftStorage() {
+        localStorage.removeItem(DRAFT_KEY);
+        updateDraftStatus('Draft dihapus');
+    }
+
+    function loadDraftFromStorage() {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            console.error('Draft parsing error:', e);
+            return null;
+        }
+    }
+
+    function updateDraftStatus(msg) {
+        const el = document.getElementById('draftStatus');
+        if (el) el.textContent = msg;
+    }
+
+    function applyDraftToForm(draft) {
+        if (!draft) return;
+
+        // Simple fields
+        document.getElementById('nama_pasien').value = draft.nama_pasien || '';
+        document.getElementById('jenis_kelamin').value = draft.jenis_kelamin || '';
+        document.getElementById('usia').value = draft.usia || '';
+        document.getElementById('kelas').value = draft.kelas || '';
+        document.getElementById('cara_bayar').value = draft.cara_bayar || '';
+        document.getElementById('tanggal_keluar').value = draft.tanggal_keluar || '';
+        document.getElementById('total_tarif_rs').value = draft.total_tarif_rs ? draft.total_tarif_rs.toLocaleString('id-ID') : document.getElementById('total_tarif_rs').value;
+
+        // Dropdowns / multi-selects - may require retries until dropdownInstances loaded
+        const attempts = { count: 0 };
+        const tryApply = () => {
+            attempts.count++;
+            // nama_dokter
+            if (dropdownInstances['nama_dokter'] && draft.nama_dokter) {
+                try { dropdownInstances['nama_dokter'].setValue(draft.nama_dokter); } catch (e) { console.warn(e); }
+            }
+            // ruangan
+            if (dropdownInstances['ruangan'] && draft.ruangan) {
+                try { dropdownInstances['ruangan'].setValue(draft.ruangan); } catch (e) { console.warn(e); }
+            }
+            // tarif_rs (multi)
+            if (dropdownInstances['tarif_rs'] && Array.isArray(draft.tindakan_rs)) {
+                try { dropdownInstances['tarif_rs'].setValue(draft.tindakan_rs); } catch (e) { console.warn(e); }
+            }
+            // icd9, icd10
+            if (dropdownInstances['icd9'] && Array.isArray(draft.icd9)) {
+                try { dropdownInstances['icd9'].setValue(draft.icd9); } catch (e) { console.warn(e); }
+            }
+            if (dropdownInstances['icd10'] && Array.isArray(draft.icd10)) {
+                try { dropdownInstances['icd10'].setValue(draft.icd10); } catch (e) { console.warn(e); }
+            }
+
+            // If some dropdowns are not ready, retry a few times
+            const allReady = (!draft.nama_dokter || dropdownInstances['nama_dokter']) && (!draft.ruangan || dropdownInstances['ruangan']) && (!draft.tindakan_rs || dropdownInstances['tarif_rs']);
+            if (!allReady && attempts.count < 10) {
+                setTimeout(tryApply, 200);
+            } else {
+                updateDraftStatus('Draft dimuat');
+            }
+        };
+        tryApply();
+    }
+
     form.addEventListener('submit', async function(event) {
         event.preventDefault();
         hideFormAlert();
@@ -1114,6 +1215,7 @@ function initBillingFormSubmission() {
             ruangan: getDropdownValue('ruangan'),
             kelas: (document.getElementById('kelas')?.value || '').trim(),
             tindakan_rs: getDropdownValue('tarif_rs'),
+            tanggal_keluar: (document.getElementById('tanggal_keluar')?.value || '').trim(),
             icd9: getDropdownValue('icd9'),
             icd10: getDropdownValue('icd10'),
             cara_bayar: (document.getElementById('cara_bayar')?.value || '').trim(),
@@ -1127,6 +1229,7 @@ function initBillingFormSubmission() {
         if (!payload.usia) errors.push('Usia wajib diisi.');
         if (!payload.ruangan) errors.push('Ruangan wajib dipilih.');
         if (!payload.kelas) errors.push('Kelas wajib dipilih.');
+        if (!payload.tanggal_keluar) errors.push('Tanggal Keluar wajib dipilih.');
         if (!Array.isArray(payload.tindakan_rs) || payload.tindakan_rs.length === 0) errors.push('Pilih minimal satu Tindakan RS.');
         if (!Array.isArray(payload.icd9) || payload.icd9.length === 0) errors.push('Pilih minimal satu ICD 9.');
         if (!Array.isArray(payload.icd10) || payload.icd10.length === 0) errors.push('Pilih minimal satu ICD 10.');
@@ -1170,5 +1273,35 @@ function initBillingFormSubmission() {
             }
         }
     });
+
+    // Setup draft buttons
+    const saveDraftBtn = document.getElementById('saveDraftBtn');
+    const clearDraftBtn = document.getElementById('clearDraftBtn');
+
+    if (saveDraftBtn) {
+        saveDraftBtn.addEventListener('click', function() {
+            if (saveDraftToStorage()) {
+                showFormAlert('success', 'Draft berhasil disimpan.');
+            } else {
+                showFormAlert('danger', 'Gagal menyimpan draft. Cek console.');
+            }
+        });
+    }
+
+    if (clearDraftBtn) {
+        clearDraftBtn.addEventListener('click', function() {
+            clearDraftStorage();
+            showFormAlert('info', 'Draft dihapus.');
+            // optionally clear form fields as well
+        });
+    }
+
+    // Load draft on init
+    const existingDraft = loadDraftFromStorage();
+    if (existingDraft) {
+        applyDraftToForm(existingDraft);
+    } else {
+        updateDraftStatus('Tidak ada draft');
+    }
 }
 

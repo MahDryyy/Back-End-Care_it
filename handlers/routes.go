@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"main.go/database"
 	"main.go/models"
 	"main.go/services"
 
@@ -11,11 +12,16 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine) {
+	// Routes get dokter
 	r.GET("/dokter", listDokterHandler)
+	// Routes get ruangan
 	r.GET("/ruangan", listRuanganHandler)
+	// Routes get icd9 icd10
 	r.GET("/icd10", listICD10Handler)
 	r.GET("/icd9", listICD9Handler)
+	// Health check
 	r.GET("/", healthHandler)
+	// Routes tarif
 	r.GET("/tarifBPJSRawatInap", listTarifBPJSRawatInapHandler)
 	r.GET("/tarifBPJS/:kode", detailTarifBPJSRawatInapHandler)
 	r.GET("/tarifBPJSRawatJalan", listTarifBPJSRawatJalanHandler)
@@ -23,9 +29,12 @@ func RegisterRoutes(r *gin.Engine) {
 	r.GET("/tarifRS", listTarifRSHandler)
 	r.GET("/tarifRS/:kode", detailTarifRSHandler)
 	r.GET("/tarifRSByKategori/:kategori", listTarifRSByKategoriHandler)
+	// Routes pasien
 	r.GET("/pasien/:id", GetPasien)
 	r.GET("/pasien/search", SearchPasienHandler)
 	r.POST("/billing", CreateBillingHandler)
+	// Admin: get all billing
+	r.GET("/admin/billing", GetAllBillingHandler)
 }
 
 // Health check
@@ -33,6 +42,25 @@ func healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "ok",
 		"message": "Server berjalan",
+	})
+}
+
+//get all billing for admin
+
+func GetAllBillingHandler(c *gin.Context) {
+
+	data, err := services.GetAllBilling(database.DB)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data":   data,
 	})
 }
 

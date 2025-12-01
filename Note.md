@@ -21,3 +21,30 @@
   "total_tarif_rs": 250000
 }
 FE harus kirim gini
+
+
+data untuk admin  dari be:
+{
+    "data": [
+        {
+            "nama_pasien": "mahdi Jamaludin",
+            "id_pasien": 1,
+            "Kelas": "2",
+            "ruangan": "R. Nusa Dua",
+            "total_tarif_rs": 150000,
+            "tindakan_rs": [
+                "DAR.001",
+                "DAR.002"
+            ],
+            "icd9": [
+                "00.0",
+                "00"
+            ],
+            "icd10": [
+                "A00",
+                "A00.0"
+            ]
+        }
+    ],
+    "status": "success"
+}
