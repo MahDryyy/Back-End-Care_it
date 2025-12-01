@@ -24,6 +24,7 @@ func RegisterRoutes(r *gin.Engine) {
 	r.GET("/tarifRS/:kode", detailTarifRSHandler)
 	r.GET("/tarifRSByKategori/:kategori", listTarifRSByKategoriHandler)
 	r.GET("/pasien/:id", GetPasien)
+	r.GET("/pasien/search", SearchPasienHandler)
 	r.POST("/billing", CreateBillingHandler)
 }
 
@@ -280,5 +281,26 @@ func CreateBillingHandler(c *gin.Context) {
 			"icd9":        icd9List,
 			"icd10":       icd10List,
 		},
+	})
+
+}
+
+//search pasien by nama handler
+
+func SearchPasienHandler(c *gin.Context) {
+	nama := c.Query("nama")
+
+	pasien, err := services.SearchPasienByNama(nama)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Gagal mengambil data pasien",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data":   pasien,
 	})
 }

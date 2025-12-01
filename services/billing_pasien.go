@@ -10,9 +10,6 @@ import (
 	"main.go/models"
 )
 
-
-
-
 // Get ID_tarif_RS dari Tindakan_RS
 func GetTarifRSByTindakan(tindakans []string) ([]models.TarifRS, error) {
 	var tarifList []models.TarifRS
@@ -46,6 +43,21 @@ func GetPasienByNama(nama string) (*models.Pasien, error) {
 	}
 
 	return &pasien, nil
+}
+
+// search pasein by nama
+func SearchPasienByNama(nama string) ([]models.Pasien, error) {
+	var pasien []models.Pasien
+
+	err := database.DB.
+		Where("Nama_Pasien LIKE ?", "%"+nama+"%").
+		Find(&pasien).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return pasien, nil
 }
 
 // GetDokterByNama mencari dokter berdasarkan nama
@@ -123,9 +135,6 @@ func DataFromFE(input models.BillingRequest) (
 			fmt.Errorf("dokter '%s' tidak ditemukan", input.Nama_Dokter)
 	}
 
-	// ===========================
-	// 3. BUAT BILLING
-	// ===========================
 	now := time.Now()
 	billing := models.BillingPasien{
 		ID_Pasien:        pasien.ID_Pasien,
@@ -143,15 +152,10 @@ func DataFromFE(input models.BillingRequest) (
 			fmt.Errorf("gagal membuat billing: %s", err.Error())
 	}
 
-	// ===========================================================
-	// 4. PROSES TINDAKAN_RΣ, ICD9, ICD10
-	// ===========================================================
-
 	var billingTindakanList []models.Billing_Tindakan
 	var billingICD9List []models.Billing_ICD9
 	var billingICD10List []models.Billing_ICD10
 
-	// ----------- TINDAKAN RS -----------
 	for _, tindakan := range input.Tindakan_RS {
 		var tarif models.TarifRS
 
@@ -175,7 +179,6 @@ func DataFromFE(input models.BillingRequest) (
 		billingTindakanList = append(billingTindakanList, billTindakan)
 	}
 
-	// ----------- ICD9 -----------
 	for _, icd := range input.ICD9 {
 		var icd9 models.ICD9
 
@@ -199,7 +202,6 @@ func DataFromFE(input models.BillingRequest) (
 		billingICD9List = append(billingICD9List, billICD9)
 	}
 
-	// ----------- ICD10 -----------
 	for _, icd := range input.ICD10 {
 		var icd10 models.ICD10
 
@@ -223,9 +225,6 @@ func DataFromFE(input models.BillingRequest) (
 		billingICD10List = append(billingICD10List, billICD10)
 	}
 
-	// ===========================
-	// 5. COMMIT
-	// ===========================
 	if err := tx.Commit().Error; err != nil {
 		return nil, nil, nil, nil, nil, err
 	}

@@ -1,320 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Form BPJS RS</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <style>
-        .autocomplete-list {
-            position: absolute;
-            z-index: 9999;
-            background: white;
-            border: 1px solid #ced4da;
-            width: 100%;
-            max-height: 200px;
-            overflow-y: auto;
-            display: none;
-        }
-        .autocomplete-list.show {
-            display: block;
-        }
-        .autocomplete-item {
-            padding: 8px;
-            cursor: pointer;
-        }
-        .autocomplete-item:hover {
-            background: #e9ecef;
-        }
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-        .spinner-border-sm {
-            width: 1rem;
-            height: 1rem;
-            border-width: 0.15em;
-        }
-        .select-loading {
-            position: relative;
-        }
-        .select-loading::after {
-            content: '';
-            position: absolute;
-            right: 30px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 16px;
-            height: 16px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #007bff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: translateY(-50%) rotate(0deg); }
-            100% { transform: translateY(-50%) rotate(360deg); }
-        }
-        
-        /* Searchable Dropdown Styles */
-        .searchable-select-wrapper {
-            position: relative;
-        }
-        .searchable-select-input {
-            width: 100%;
-            padding: 0.375rem 2.5rem 0.375rem 0.75rem;
-            border: 1px solid #ced4da;
-            border-radius: 0.375rem;
-            font-size: 1rem;
-            line-height: 1.5;
-            background-color: #fff;
-            cursor: pointer;
-        }
-        .searchable-select-input:focus {
-            border-color: #86b7fe;
-            outline: 0;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-        }
-        .searchable-select-input.searching {
-            cursor: text;
-        }
-        .searchable-select-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            background: white;
-            border: 1px solid #ced4da;
-            border-radius: 0.375rem;
-            margin-top: 0.25rem;
-            max-height: 300px;
-            overflow: hidden;
-            display: none;
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-        }
-        .searchable-select-dropdown.show {
-            display: block;
-        }
-        .searchable-select-search {
-            padding: 0.5rem;
-            border-bottom: 1px solid #ced4da;
-            background: #f8f9fa;
-        }
-        .searchable-select-search input {
-            width: 100%;
-            padding: 0.375rem 0.75rem;
-            border: 1px solid #ced4da;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-        }
-        .searchable-select-options {
-            max-height: 250px;
-            overflow-y: auto;
-        }
-        .searchable-select-option {
-            padding: 0.5rem 0.75rem;
-            cursor: pointer;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .searchable-select-option:hover,
-        .searchable-select-option.highlighted {
-            background-color: #e9ecef;
-        }
-        .searchable-select-option.selected {
-            background-color: #0d6efd;
-            color: white;
-        }
-        .searchable-select-arrow {
-            position: absolute;
-            right: 0.75rem;
-            top: 50%;
-            transform: translateY(-50%);
-            pointer-events: none;
-            transition: transform 0.2s;
-        }
-        .searchable-select-wrapper.open .searchable-select-arrow {
-            transform: translateY(-50%) rotate(180deg);
-        }
-        .searchable-select-no-results {
-            padding: 0.75rem;
-            text-align: center;
-            color: #6c757d;
-            font-size: 0.875rem;
-        }
-        
-        /* Multi-select Styles */
-        .searchable-select-wrapper.multi-select .searchable-select-input {
-            min-height: 38px;
-            padding: 0.25rem 2.5rem 0.25rem 0.5rem;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 0.25rem;
-        }
-        .searchable-select-wrapper.multi-select .searchable-select-input:empty::before {
-            content: attr(placeholder);
-            color: #6c757d;
-        }
-        .selected-chip {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.5rem;
-            background-color: #0d6efd;
-            color: white;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-            gap: 0.25rem;
-        }
-        .selected-chip .chip-remove {
-            cursor: pointer;
-            font-weight: bold;
-            padding: 0 0.25rem;
-            border-radius: 0.125rem;
-            transition: background-color 0.2s;
-        }
-        .selected-chip .chip-remove:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-        }
-        .searchable-select-wrapper.multi-select .searchable-select-input input {
-            flex: 1;
-            min-width: 100px;
-            border: none;
-            outline: none;
-            padding: 0.25rem;
-            background: transparent;
-            cursor: text;
-        }
-        .searchable-select-wrapper.multi-select .searchable-select-input input:focus {
-            outline: none;
-        }
-        .searchable-select-option.selected {
-            background-color: #0d6efd;
-            color: white;
-        }
-        .searchable-select-option.selected::after {
-            content: " ✓";
-            float: right;
-        }
-    </style>
-</head>
-
-<body class="p-4 bg-light">
-
-<div class="container">
-    <h2 class="mb-4">Form Input BPJS</h2>
-
-    <form id="bpjsForm" class="card p-4 shadow-sm">
-
-        <!-- === DOKTER === -->
-        <div class="mb-3">
-            <label class="form-label">Nama Dokter</label>
-            <div class="searchable-select-wrapper" id="wrapper_nama_dokter">
-                <input type="text" class="searchable-select-input" id="nama_dokter" readonly placeholder="Dokter...">
-                <span class="searchable-select-arrow">▼</span>
-                <div class="searchable-select-dropdown" id="dropdown_nama_dokter">
-                    <div class="searchable-select-search">
-                        <input type="text" placeholder="Cari..." id="search_nama_dokter" autocomplete="off">
-                    </div>
-                    <div class="searchable-select-options" id="options_nama_dokter"></div>
-                </div>
-            </div>
-            <select class="form-select d-none" id="select_nama_dokter" name="nama_dokter"></select>
-        </div>
-
-        <!-- NAMA PASIEN -->
-        <div class="mb-3 position-relative">
-            <label class="form-label">Nama Pasien</label>
-            <input type="text" class="form-control" id="nama_pasien" autocomplete="off">
-            <div id="list_pasien" class="autocomplete-list"></div>
-            <input type="hidden" id="id_pasien" name="id_pasien">
-        </div>
-
-        <!-- Auto Fill -->
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label class="form-label">Jenis Kelamin</label>
-                <input type="text" class="form-control" id="jenis_kelamin" disabled>
-            </div>
-
-            <div class="col-md-6 mb-3">
-                <label class="form-label">Usia</label>
-                <input type="number" class="form-control" id="usia" disabled>
-            </div>
-
-            <div class="col-md-6 mb-3">
-                <label class="form-label">Ruangan</label>
-                <input type="text" class="form-control" id="ruangan" disabled>
-            </div>
-
-            <div class="col-md-6 mb-3">
-                <label class="form-label">Kelas</label>
-                <input type="text" class="form-control" id="kelas" disabled>
-            </div>
-        </div>
-
-        <!-- TINDAKAN -->
-        <div class="mb-3">
-            <label class="form-label">Tindakan RS</label>
-            <div class="searchable-select-wrapper multi-select" id="wrapper_tarif_rs">
-                <div class="searchable-select-input" id="tarif_rs" placeholder="-- Pilih --">
-                    <input type="text" id="input_tarif_rs" placeholder="Tindakan..." autocomplete="off">
-                </div>
-                <span class="searchable-select-arrow">▼</span>
-                <div class="searchable-select-dropdown" id="dropdown_tarif_rs">
-                    <div class="searchable-select-search">
-                        <input type="text" placeholder="Cari..." id="search_tarif_rs" autocomplete="off">
-                    </div>
-                    <div class="searchable-select-options" id="options_tarif_rs"></div>
-                </div>
-            </div>
-            <select class="form-select d-none" id="select_tarif_rs" name="tarif_rs" multiple></select>
-        </div>
-
-        <!-- ICD -->
-        <div class="mb-3">
-            <label class="form-label">ICD 9</label>
-            <div class="searchable-select-wrapper multi-select" id="wrapper_icd9">
-                <div class="searchable-select-input" id="icd9" placeholder="-- Pilih --">
-                    <input type="text" id="input_icd9" placeholder="-- Pilih --" autocomplete="off">
-                </div>
-                <span class="searchable-select-arrow">▼</span>
-                <div class="searchable-select-dropdown" id="dropdown_icd9">
-                    <div class="searchable-select-search">
-                        <input type="text" placeholder="Cari..." id="search_icd9" autocomplete="off">
-                    </div>
-                    <div class="searchable-select-options" id="options_icd9"></div>
-                </div>
-            </div>
-            <select class="form-select d-none" id="select_icd9" name="icd9" multiple></select>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">ICD 10</label>
-            <div class="searchable-select-wrapper multi-select" id="wrapper_icd10">
-                <div class="searchable-select-input" id="icd10" placeholder="-- Pilih --">
-                    <input type="text" id="input_icd10" placeholder="-- Pilih --" autocomplete="off">
-                </div>
-                <span class="searchable-select-arrow">▼</span>
-                <div class="searchable-select-dropdown" id="dropdown_icd10">
-                    <div class="searchable-select-search">
-                        <input type="text" placeholder="Cari..." id="search_icd10" autocomplete="off">
-                    </div>
-                    <div class="searchable-select-options" id="options_icd10"></div>
-                </div>
-            </div>
-            <select class="form-select d-none" id="select_icd10" name="icd10" multiple></select>
-        </div>
-
-        <button class="btn btn-primary">Simpan</button>
-    </form>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-<script>
-
+// ============= CONFIGURATION =============
 const API_BASE = "http://localhost:8081";
 const FETCH_TIMEOUT = 10000;
 
@@ -639,6 +323,11 @@ function initSearchableDropdown(selectId) {
         // Trigger change event
         const event = new Event('change', { bubbles: true });
         if (hiddenSelect) hiddenSelect.dispatchEvent(event);
+        
+        // Jika ini adalah tarif_rs, hitung ulang total
+        if (selectId === 'tarif_rs') {
+            calculateTotalTarifRS();
+        }
     }
     
     function removeSelection(value) {
@@ -649,6 +338,11 @@ function initSearchableDropdown(selectId) {
         }
         renderChips();
         renderOptions(); // Update checkmarks
+        
+        // Jika ini adalah tarif_rs, hitung ulang total
+        if (selectId === 'tarif_rs') {
+            calculateTotalTarifRS();
+        }
     }
     
     // Public function to set options
@@ -688,11 +382,45 @@ function initSearchableDropdown(selectId) {
                     renderChips();
                     renderOptions();
                 }
+                
+                // Jika ini adalah tarif_rs, hitung ulang total setelah set value
+                if (selectId === 'tarif_rs') {
+                    setTimeout(() => calculateTotalTarifRS(), 100);
+                }
             } else {
-                const option = allOptions.find(opt => opt.value === value);
+                // Untuk single-select, cari option berdasarkan value atau text
+                let option = allOptions.find(opt => opt.value === value || opt.value === value.toString());
+                
+                // Jika tidak ditemukan berdasarkan value, coba cari berdasarkan text
+                if (!option) {
+                    option = allOptions.find(opt => opt.text === value || opt.text === value.toString());
+                }
+                
                 if (option) {
-                    inputField.value = option.text;
-                    if (hiddenSelect) hiddenSelect.value = value;
+                    // Update input element langsung
+                    input.value = option.text;
+                    if (hiddenSelect) {
+                        hiddenSelect.value = option.value;
+                    }
+                    console.log(`[${selectId}] setValue: Set to "${option.text}" (value: "${option.value}")`);
+                } else {
+                    // Jika option tidak ditemukan, coba set langsung ke input sebagai fallback
+                    console.warn(`[${selectId}] setValue: Option not found for value "${value}", setting directly to input`);
+                    input.value = value;
+                    if (hiddenSelect) {
+                        // Coba cari di hidden select
+                        const hiddenOption = Array.from(hiddenSelect.options).find(opt => 
+                            opt.text === value || opt.value === value || opt.text === value.toString() || opt.value === value.toString()
+                        );
+                        if (hiddenOption) {
+                            hiddenSelect.value = hiddenOption.value;
+                        }
+                    }
+                }
+                
+                // Jika ini adalah tarif_rs, hitung ulang total setelah set value
+                if (selectId === 'tarif_rs') {
+                    setTimeout(() => calculateTotalTarifRS(), 100);
                 }
             }
         }
@@ -753,6 +481,12 @@ async function loadSelect(url, selectId, labelField) {
                 return null;
             }
             
+            // KHUSUS untuk ruangan: tampilkan hanya Nama_Ruangan
+            if (selectId === 'ruangan') {
+                const namaRuangan = item['Nama_Ruangan'] || '';
+                return namaRuangan || null;
+            }
+            
             // Untuk dropdown lain, gunakan logic normal
             // Coba langsung
             if (item[fieldName] !== undefined && item[fieldName] !== null && item[fieldName] !== '') {
@@ -791,6 +525,16 @@ async function loadSelect(url, selectId, labelField) {
         // Build options array untuk searchable dropdown
         const options = [];
         
+        // Clear ruanganDataList jika ini adalah load ruangan
+        if (selectId === 'ruangan') {
+            ruanganDataList = [];
+        }
+        
+        // Clear tarifRSDataList jika ini adalah load tarif_rs
+        if (selectId === 'tarif_rs') {
+            tarifRSDataList = [];
+        }
+        
         data.forEach(item => {
             const value = getFieldValue(item, labelField);
             
@@ -804,6 +548,18 @@ async function loadSelect(url, selectId, labelField) {
                 value: valueStr,
                 text: valueStr
             });
+            
+            // KHUSUS untuk ruangan: store data asli untuk lookup (dengan ID_Ruangan)
+            if (selectId === 'ruangan') {
+                ruanganDataList.push(item);
+                console.log(`[ruangan] Stored ruangan data:`, item);
+            }
+            
+            // KHUSUS untuk tarif_rs: store data asli untuk lookup harga
+            if (selectId === 'tarif_rs') {
+                tarifRSDataList.push(item);
+                console.log(`[tarif_rs] Stored tarif RS data:`, item);
+            }
         });
         
         if (options.length === 0) {
@@ -836,6 +592,22 @@ async function loadSelect(url, selectId, labelField) {
             }
             
             console.log(`[${selectId}] Loaded ${options.length} items`);
+            
+            // Jika ini adalah load ruangan dan ada pending ruangan ID, set sekarang
+            if (selectId === 'ruangan' && pendingRuanganId) {
+                console.log('Ruangan selesai di-load, setting pending ruangan ID:', pendingRuanganId);
+                setTimeout(() => {
+                    setRuanganFromId(pendingRuanganId);
+                    pendingRuanganId = null; // Clear pending
+                }, 100);
+            }
+            
+            // Jika ini adalah load tarif_rs, hitung total setelah load selesai
+            if (selectId === 'tarif_rs') {
+                setTimeout(() => {
+                    calculateTotalTarifRS();
+                }, 200);
+            }
         }
     } catch (error) {
         console.error(`Error loading ${selectId}:`, error);
@@ -854,13 +626,14 @@ async function loadAllSelects() {
         // Untuk tarif_rs: gunakan field "Deskripsi" dari JSON response (bukan KodeRS/ID)
         loadSelect(`${API_BASE}/tarifRS`, 'tarif_rs', 'Deskripsi'),
         loadSelect(`${API_BASE}/icd9`, 'icd9', 'Prosedur'),
-        loadSelect(`${API_BASE}/icd10`, 'icd10', 'Diagnosa')
+        loadSelect(`${API_BASE}/icd10`, 'icd10', 'Diagnosa'),
+        loadSelect(`${API_BASE}/ruangan`, 'ruangan', 'Nama_Ruangan')
     ]);
 }
 
 // Initialize all searchable dropdowns
 function initAllDropdowns() {
-    const dropdownIds = ['nama_dokter', 'tarif_rs', 'icd9', 'icd10'];
+    const dropdownIds = ['nama_dokter', 'tarif_rs', 'icd9', 'icd10', 'ruangan'];
     dropdownIds.forEach(id => {
         if (!dropdownInstances[id]) {
             dropdownInstances[id] = initSearchableDropdown(id);
@@ -868,15 +641,70 @@ function initAllDropdowns() {
     });
 }
 
-// Load saat DOM ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        initAllDropdowns();
-        loadAllSelects();
+// ============= CALCULATE TOTAL TARIF RS =============
+function calculateTotalTarifRS() {
+    const totalInput = document.getElementById('total_tarif_rs');
+    if (!totalInput) {
+        console.warn('total_tarif_rs input tidak ditemukan');
+        return;
+    }
+    
+    // Ambil semua tindakan yang dipilih dari dropdown tarif_rs
+    const selectedTindakan = [];
+    if (dropdownInstances['tarif_rs']) {
+        const selectedValues = dropdownInstances['tarif_rs'].getValue();
+        if (Array.isArray(selectedValues)) {
+            selectedTindakan.push(...selectedValues);
+        }
+    }
+    
+    // Jika tidak ada tindakan yang dipilih, set total ke 0
+    if (selectedTindakan.length === 0) {
+        totalInput.value = '0';
+        return;
+    }
+    
+    // Hitung total dari setiap tindakan
+    let total = 0;
+    selectedTindakan.forEach(tindakan => {
+        // Cari data tarif RS berdasarkan Deskripsi (tindakan) - case insensitive
+        const tarifData = tarifRSDataList.find(t => {
+            const deskripsi = t.Deskripsi || t.deskripsi || t.Tindakan_RS || t.tindakan_rs || '';
+            return deskripsi.toString().trim().toLowerCase() === tindakan.toString().trim().toLowerCase();
+        });
+        
+        if (tarifData) {
+            // Ambil harga - coba berbagai kemungkinan field name
+            // Dari model: Harga int `gorm:"column:Tarif_RS"`
+            // Jadi di JSON response kemungkinan fieldnya adalah "Tarif_RS" atau "Harga"
+            const harga = tarifData.Tarif_RS || 
+                         tarifData.tarif_rs ||
+                         tarifData.TarifRS ||
+                         tarifData.tarifRS ||
+                         tarifData.Harga || 
+                         tarifData.harga ||
+                         0;
+            
+            // Convert ke number
+            const hargaNum = parseInt(harga) || 0;
+            total += hargaNum;
+            
+            console.log(`Tindakan "${tindakan}": Rp ${hargaNum.toLocaleString('id-ID')}`);
+        } else {
+            console.warn(`Harga tidak ditemukan untuk tindakan: "${tindakan}"`);
+            console.log('Available tarif RS data (first 3):', tarifRSDataList.slice(0, 3).map(t => ({
+                Deskripsi: t.Deskripsi,
+                Tarif_RS: t.Tarif_RS,
+                Harga: t.Harga,
+                allKeys: Object.keys(t)
+            })));
+        }
     });
-} else {
-    initAllDropdowns();
-    loadAllSelects();
+    
+    // Format angka dengan pemisah ribuan (format Indonesia)
+    totalInput.value = total.toLocaleString('id-ID');
+    
+    console.log(`Total Tarif RS: Rp ${total.toLocaleString('id-ID')}`);
 }
 
 // ============= AUTOCOMPLETE PASIEN =============
@@ -914,7 +742,10 @@ async function searchPasien(keyword) {
             throw new Error(`HTTP error! status: ${res.status}`);
         }
         
-        const data = await res.json();
+        const response = await res.json();
+        
+        // Handle response format: bisa array langsung atau {data: [], status: "success"}
+        const data = Array.isArray(response) ? response : (response.data || []);
 
         // Optimasi: gunakan DocumentFragment untuk batch DOM updates
         listPasien.innerHTML = '';
@@ -937,7 +768,7 @@ async function searchPasien(keyword) {
             return;
         }
         console.error('Error searching pasien:', error);
-        listPasien.innerHTML = '<div class="autocomplete-item text-danger">Error: Gagal memuat data</div>';
+        listPasien.innerHTML = '<div class="autocomplete-item text-danger">Error: Gagal memload data</div>';
     }
 }
 
@@ -955,19 +786,274 @@ document.addEventListener('click', function(e) {
     }
 });
 
+let lastSelectedPasienName = null;
+let ruanganDataList = []; // Store semua data ruangan untuk lookup
+let pendingRuanganId = null; // Store ruangan ID yang perlu di-set setelah load selesai
+let tarifRSDataList = []; // Store semua data tarif RS untuk lookup harga
+
+// Helper function untuk set ruangan dari ID atau Nama
+function setRuanganFromId(ruanganIdOrNama) {
+    console.log('setRuanganFromId called with:', ruanganIdOrNama);
+    console.log('ruanganDataList length:', ruanganDataList.length);
+    
+    if (!ruanganIdOrNama) {
+        console.warn('ruanganIdOrNama is empty');
+        return;
+    }
+    
+    if (ruanganDataList.length === 0) {
+        console.warn('ruanganDataList masih kosong');
+        return;
+    }
+    
+    const searchValue = ruanganIdOrNama.toString().trim();
+    console.log('Mencari ruangan dengan value:', searchValue);
+    
+    // PRIORITAS 1: Cari berdasarkan NAMA RUANGAN dulu (karena p.Ruangan sekarang adalah nama, bukan ID)
+    // Coba exact match dulu (case-insensitive)
+    let ruanganFound = ruanganDataList.find(r => {
+        const namaRuangan = r.Nama_Ruangan || r.nama_ruangan || r.NamaRuangan || r.Nama || r.nama || '';
+        const namaRuanganTrimmed = namaRuangan.toString().trim();
+        return namaRuanganTrimmed.toLowerCase() === searchValue.toLowerCase();
+    });
+    
+    if (ruanganFound) {
+        console.log('✓ Found ruangan by NAMA (exact match):', ruanganFound);
+    } else {
+        // Coba partial match (nama ruangan mengandung searchValue atau sebaliknya)
+        console.log('Tidak ditemukan exact match, mencoba partial match...');
+        ruanganFound = ruanganDataList.find(r => {
+            const namaRuangan = r.Nama_Ruangan || r.nama_ruangan || r.NamaRuangan || r.Nama || r.nama || '';
+            const namaRuanganTrimmed = namaRuangan.toString().trim();
+            const searchLower = searchValue.toLowerCase();
+            const namaLower = namaRuanganTrimmed.toLowerCase();
+            
+            // Cek apakah searchValue ada di nama ruangan atau sebaliknya
+            return namaLower.includes(searchLower) || searchLower.includes(namaLower);
+        });
+        
+        if (ruanganFound) {
+            console.log('✓ Found ruangan by NAMA (partial match):', ruanganFound);
+        } else {
+            // PRIORITAS 2: Jika tidak ditemukan berdasarkan nama, cari berdasarkan ID
+            console.log('Tidak ditemukan berdasarkan nama, mencoba berdasarkan ID...');
+            ruanganFound = ruanganDataList.find(r => {
+                // Coba ID_Ruangan (case-insensitive comparison)
+                if (r.ID_Ruangan && r.ID_Ruangan.toString().trim() === searchValue) {
+                    return true;
+                }
+                // Coba ID (case-insensitive)
+                if (r.ID && r.ID.toString().trim() === searchValue) {
+                    return true;
+                }
+                // Coba id (lowercase)
+                if (r.id && r.id.toString().trim() === searchValue) {
+                    return true;
+                }
+                // Coba Ruangan_ID atau field lain yang mungkin
+                const keys = Object.keys(r);
+                const idKey = keys.find(k => {
+                    const kLower = k.toLowerCase();
+                    return (kLower.includes('id') && kLower.includes('ruangan')) ||
+                           (kLower === 'id_ruangan');
+                });
+                if (idKey && r[idKey] && r[idKey].toString().trim() === searchValue) {
+                    return true;
+                }
+                return false;
+            });
+            
+            if (ruanganFound) {
+                console.log('✓ Found ruangan by ID:', ruanganFound);
+            }
+        }
+    }
+    
+    if (ruanganFound) {
+        console.log('Found ruangan:', ruanganFound); // Debug
+        
+        // Ambil nama ruangan - coba berbagai kemungkinan field name
+        const namaRuangan = ruanganFound.Nama_Ruangan || 
+                           ruanganFound.nama_ruangan || 
+                           ruanganFound.NamaRuangan ||
+                           ruanganFound.Nama ||
+                           ruanganFound.nama ||
+                           null;
+        
+        if (namaRuangan) {
+            console.log('Setting ruangan nama:', namaRuangan);
+            
+            // Set langsung ke input field sebagai fallback utama
+            const inputRuangan = document.getElementById('ruangan');
+            if (inputRuangan) {
+                inputRuangan.value = namaRuangan;
+                console.log('Input ruangan langsung di-set ke:', namaRuangan);
+            }
+            
+            // Set ke hidden select juga
+            const selectEl = document.getElementById('select_ruangan');
+            if (selectEl) {
+                // Cari option yang match dengan namaRuangan
+                const options = selectEl.options;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].text === namaRuangan || options[i].value === namaRuangan) {
+                        selectEl.value = options[i].value;
+                        console.log('Hidden select di-set ke:', options[i].value);
+                        break;
+                    }
+                }
+            }
+            
+            // Pastikan dropdown instance sudah ready dan set value
+            if (dropdownInstances['ruangan']) {
+                // Gunakan setTimeout untuk memastikan DOM sudah siap
+                setTimeout(() => {
+                    try {
+                        dropdownInstances['ruangan'].setValue(namaRuangan);
+                        console.log('setValue called for ruangan:', namaRuangan);
+                        
+                        // Double check - jika setelah setValue input masih kosong, set lagi
+                        setTimeout(() => {
+                            const checkInput = document.getElementById('ruangan');
+                            if (checkInput && !checkInput.value) {
+                                console.warn('Input masih kosong setelah setValue, setting lagi...');
+                                checkInput.value = namaRuangan;
+                            }
+                        }, 200);
+                    } catch (error) {
+                        console.error('Error calling setValue:', error);
+                        // Fallback: set langsung ke input
+                        if (inputRuangan) {
+                            inputRuangan.value = namaRuangan;
+                        }
+                    }
+                }, 100);
+            } else {
+                console.warn('dropdownInstances[ruangan] belum ada, menggunakan fallback');
+            }
+        } else {
+            console.warn('Nama ruangan tidak ditemukan di data:', ruanganFound);
+            console.log('Available fields:', Object.keys(ruanganFound));
+        }
+    } else {
+        console.warn('Ruangan dengan ID/Nama', searchValue, 'tidak ditemukan di ruanganDataList');
+        console.log('Mencari ruangan dengan nama yang mengandung:', searchValue);
+        
+        // Coba partial match sebagai fallback
+        const partialMatch = ruanganDataList.find(r => {
+            const namaRuangan = r.Nama_Ruangan || r.nama_ruangan || r.NamaRuangan || r.Nama || r.nama || '';
+            return namaRuangan.toString().toLowerCase().includes(searchValue.toLowerCase()) ||
+                   searchValue.toLowerCase().includes(namaRuangan.toString().toLowerCase());
+        });
+        
+        if (partialMatch) {
+            console.log('Found ruangan dengan partial match:', partialMatch);
+            const namaRuangan = partialMatch.Nama_Ruangan || partialMatch.nama_ruangan || partialMatch.NamaRuangan || partialMatch.Nama || partialMatch.nama || '';
+            if (namaRuangan) {
+                const inputRuangan = document.getElementById('ruangan');
+                if (inputRuangan) {
+                    inputRuangan.value = namaRuangan;
+                }
+                if (dropdownInstances['ruangan']) {
+                    setTimeout(() => {
+                        dropdownInstances['ruangan'].setValue(namaRuangan);
+                    }, 100);
+                }
+                return;
+            }
+        }
+        
+        console.log('Available ruangan data (first 5):', ruanganDataList.slice(0, 5).map(r => ({
+            ID_Ruangan: r.ID_Ruangan,
+            Nama_Ruangan: r.Nama_Ruangan
+        })));
+    }
+}
+
 function fillPasien(p) {
+    console.log('=== FILLING PASIEN ===');
+    console.log('Full pasien data:', JSON.stringify(p, null, 2)); // Debug - log full structure
+    console.log('Pasien Ruangan field:', p.Ruangan, 'Type:', typeof p.Ruangan); // Debug
+    console.log('RuanganDataList length:', ruanganDataList.length); // Debug
+    if (ruanganDataList.length > 0) {
+        console.log('Sample ruangan data (first item):', ruanganDataList[0]); // Debug
+        console.log('Sample ruangan ID_Ruangan:', ruanganDataList[0].ID_Ruangan); // Debug
+        console.log('Sample ruangan Nama_Ruangan:', ruanganDataList[0].Nama_Ruangan); // Debug
+    }
+    
     inputPasien.value = p.Nama_Pasien;
+    lastSelectedPasienName = p.Nama_Pasien; // Track nama yang dipilih
     listPasien.innerHTML = '';
     listPasien.classList.remove('show');
 
     document.getElementById('id_pasien').value = p.ID_Pasien;
     document.getElementById('jenis_kelamin').value = p.Jenis_Kelamin || '';
     document.getElementById('usia').value = p.Usia || '';
-    document.getElementById('ruangan').value = p.Ruangan || '';
-    document.getElementById('kelas').value = p.Kelas || '';
+    
+    // Set Kelas
+    if (p.Kelas) {
+        console.log('Setting kelas:', p.Kelas); // Debug
+        document.getElementById('kelas').value = p.Kelas;
+    }
+    
+    // Set Ruangan - setRuanganFromId sekarang bisa handle baik ID maupun Nama
+    if (p.Ruangan) {
+        console.log('=== SETTING RUANGAN ===');
+        console.log('Pasien punya Ruangan:', p.Ruangan, 'Type:', typeof p.Ruangan); // Debug
+        
+        // Jika ruanganDataList masih kosong, simpan sebagai pending dan tunggu load selesai
+        if (ruanganDataList.length === 0) {
+            console.log('RuanganDataList masih kosong, menyimpan sebagai pending...');
+            pendingRuanganId = p.Ruangan;
+            
+            // Juga coba retry beberapa kali sebagai fallback
+            let retryCount = 0;
+            const maxRetries = 10;
+            
+            const retrySetRuangan = () => {
+                retryCount++;
+                if (ruanganDataList.length > 0) {
+                    console.log('RuanganDataList sudah terisi, setting ruangan...');
+                    setRuanganFromId(p.Ruangan);
+                    pendingRuanganId = null; // Clear pending
+                } else if (retryCount < maxRetries) {
+                    console.log(`Retry ${retryCount}/${maxRetries} untuk set ruangan...`);
+                    setTimeout(retrySetRuangan, 200);
+                } else {
+                    console.warn('RuanganDataList masih kosong setelah beberapa retry');
+                }
+            };
+            
+            setTimeout(retrySetRuangan, 200);
+        } else {
+            // Langsung set karena ruanganDataList sudah terisi
+            // setRuanganFromId akan otomatis cari berdasarkan nama dulu, lalu ID
+            setRuanganFromId(p.Ruangan);
+        }
+    }
 }
 
-</script>
+// Deteksi jika user mengubah nama pasien - clear ID jika berbeda
+inputPasien.addEventListener('change', function() {
+    // Jika nama sekarang berbeda dengan yang dipilih, clear ID dan field terkait
+    if (lastSelectedPasienName && this.value.trim() !== lastSelectedPasienName) {
+        document.getElementById('id_pasien').value = '';
+        // Clear juga field ruangan dan kelas
+        if (dropdownInstances['ruangan']) {
+            dropdownInstances['ruangan'].setValue('');
+        }
+        document.getElementById('kelas').value = '';
+    }
+});
 
-</body>
-</html>
+// Load saat DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        initAllDropdowns();
+        loadAllSelects();
+    });
+} else {
+    initAllDropdowns();
+    loadAllSelects();
+}
+
