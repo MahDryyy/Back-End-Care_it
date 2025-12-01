@@ -1,9 +1,84 @@
 package services
 
 import (
+	"errors"
+	"fmt"
+
 	"gorm.io/gorm"
 	"main.go/models"
 )
+
+func Post_INACBG_Admin(db *gorm.DB, input models.Post_INACBG_Admin) error {
+	tx := db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	// Ensure rollback on panic / unexpected error
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Validate input
+	if input.Tipe_inacbg != "RI" && input.Tipe_inacbg != "RJ" {
+		tx.Rollback()
+		return errors.New("invalid tipe_inacbg: must be 'RI' or 'RJ'")
+	}
+	if len(input.Kode_INACBG) == 0 {
+		tx.Rollback()
+		return errors.New("Kode_INACBG tidak boleh kosong")
+	}
+
+	// 1. Update total klaim dan billing_sign
+	res := tx.Model(&models.BillingPasien{}).
+		Where("ID_Billing = ?", input.ID_Billing).
+		Updates(map[string]interface{}{
+			"Total_klaim":  input.Total_klaim,
+			"Billing_sign": input.Billing_sign,
+		})
+
+	if res.Error != nil {
+		tx.Rollback()
+		return fmt.Errorf("gagal update billing: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		tx.Rollback()
+		return fmt.Errorf("billing dengan ID_Billing=%d tidak ditemukan", input.ID_Billing)
+	}
+
+	// 2. Bulk insert kode INACBG berdasarkan tipe_inacbg
+	switch input.Tipe_inacbg {
+	case "RI":
+		records := make([]models.Billing_INACBG_RI, 0, len(input.Kode_INACBG))
+		for _, kode := range input.Kode_INACBG {
+			records = append(records, models.Billing_INACBG_RI{
+				ID_Billing:  input.ID_Billing,
+				Kode_INACBG: kode,
+			})
+		}
+		if err := tx.Create(&records).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("gagal insert INACBG RI: %w", err)
+		}
+
+	case "RJ":
+		records := make([]models.Billing_INACBG_RJ, 0, len(input.Kode_INACBG))
+		for _, kode := range input.Kode_INACBG {
+			records = append(records, models.Billing_INACBG_RJ{
+				ID_Billing:  input.ID_Billing,
+				Kode_INACBG: kode,
+			})
+		}
+		if err := tx.Create(&records).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("gagal insert INACBG RJ: %w", err)
+		}
+	}
+
+	return tx.Commit().Error
+}
 
 func GetAllBilling(db *gorm.DB) ([]models.Request_Admin_Inacbg, error) {
 	var billings []models.BillingPasien
@@ -104,6 +179,7 @@ func GetAllBilling(db *gorm.DB) ([]models.Request_Admin_Inacbg, error) {
 			Tindakan_RS:    tindakanMap[b.ID_Billing],
 			ICD9:           icd9Map[b.ID_Billing],
 			ICD10:          icd10Map[b.ID_Billing],
+			Billing_sign:   b.Billing_sign,
 		}
 
 		result = append(result, item)

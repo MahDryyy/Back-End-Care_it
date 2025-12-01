@@ -35,6 +35,8 @@ func RegisterRoutes(r *gin.Engine) {
 	r.POST("/billing", CreateBillingHandler)
 	// Admin: get all billing
 	r.GET("/admin/billing", GetAllBillingHandler)
+	// Admin: post INACBG
+	r.POST("/admin/inacbg", PostINACBGAdminHandler)
 }
 
 // Health check
@@ -44,6 +46,8 @@ func healthHandler(c *gin.Context) {
 		"message": "Server berjalan",
 	})
 }
+
+//post inacbg admin
 
 //get all billing for admin
 
@@ -61,6 +65,43 @@ func GetAllBillingHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "success",
 		"data":   data,
+	})
+}
+
+// Post INACBG from admin
+func PostINACBGAdminHandler(c *gin.Context) {
+	var input models.Post_INACBG_Admin
+
+	// Ensure JSON
+	if c.GetHeader("Content-Type") != "application/json" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "Content-Type harus application/json",
+		})
+		return
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "Data tidak valid",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	if err := services.Post_INACBG_Admin(database.DB, input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Gagal memproses INACBG",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "INACBG berhasil disimpan",
 	})
 }
 

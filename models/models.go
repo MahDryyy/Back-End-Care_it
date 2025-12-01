@@ -37,6 +37,26 @@ func (TarifRS) TableName() string {
 	return "tarif_rs"
 }
 
+//billing_inacbg_RI
+type Billing_INACBG_RI struct {
+	ID_Billing  int    `gorm:"column:ID_Billing"`
+	Kode_INACBG string `gorm:"column:ID_INACBG_RI"`
+}
+
+func (Billing_INACBG_RI) TableName() string {
+	return "billing_inacbg_ri"
+}
+
+//billing_inacbg_RJ
+type Billing_INACBG_RJ struct {
+	ID_Billing  int    `gorm:"column:ID_Billing"`
+	Kode_INACBG string `gorm:"column:ID_INACBG_RJ"`
+}
+
+func (Billing_INACBG_RJ) TableName() string {
+	return "billing_inacbg_rj"
+}
+
 // ICD9
 
 type ICD9 struct {
@@ -220,10 +240,14 @@ type Request_Admin_Inacbg struct {
 	Tindakan_RS    []string `json:"tindakan_rs"`
 	ICD9           []string `json:"icd9"`
 	ICD10          []string `json:"icd10"`
+	Billing_sign   string   `json:"billing_sign"`
 }
 
-type post_inacbg_admin struct {
-	ID_Billing  int     `json:"id_billing"`
-	Kode_INACBG string  `json:"kode_inacbg"`
-	Total_klaim float64 `json:"total_klaim"`
+// post ke data base
+type Post_INACBG_Admin struct {
+	ID_Billing   int      `json:"id_billing"`
+	Tipe_inacbg  string   `json:"tipe_inacbg"`
+	Kode_INACBG  []string `json:"kode_inacbg"`
+	Total_klaim  float64  `json:"total_klaim"`
+	Billing_sign string   `json:"billing_sign"`
 }
