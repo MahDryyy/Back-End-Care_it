@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
+	"backendcareit/models"
+
 	"gorm.io/gorm"
-	"main.go/models"
 )
 
 func Post_INACBG_Admin(db *gorm.DB, input models.Post_INACBG_Admin) error {

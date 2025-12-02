@@ -48,3 +48,23 @@ data untuk admin  dari be:
     ],
     "status": "success"
 }
+
+
+		if strings.TrimSpace(dokter.Password) == "" || dokter.Password != req.Password {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status":  "error",
+				"message": "Email atau password salah",
+			})
+			return
+		}
+
+    {
+    "dokter": {
+        "email": "hajengwulandari.fk@ub.ac.id",
+        "id": 2,
+        "ksm": "Anak",
+        "nama": "dr. Hajeng Wulandari, Sp.A, Mbiomed"
+    },
+    "status": "success",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImhhamVuZ3d1bGFuZGFyaS5ma0B1Yi5hYy5pZCIsImV4cCI6MTc2NDc1NzIxMCwiaWF0IjoxNzY0NjcwODEwLCJpZCI6Miwia3NtIjoiQW5hayIsIm5hbWEiOiJkci4gSGFqZW5nIFd1bGFuZGFyaSwgU3AuQSwgTWJpb21lZCJ9.X1PyxjbC1Ht3DFbvi4svqXY4hsNIS_nmYMROkRaK-Ko"
+}

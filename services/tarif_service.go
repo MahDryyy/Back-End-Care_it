@@ -1,8 +1,8 @@
 package services
 
 import (
-	"main.go/database"
-	"main.go/models"
+	"backendcareit/database"
+	"backendcareit/models"
 
 	"gorm.io/gorm"
 )

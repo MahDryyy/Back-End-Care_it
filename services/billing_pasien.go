@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"backendcareit/database"
+	"backendcareit/models"
+
 	"gorm.io/gorm"
-	"main.go/database"
-	"main.go/models"
 )
 
 // Get ID_tarif_RS dari Tindakan_RS
@@ -255,3 +256,6 @@ func DataFromFE(input models.BillingRequest) (
 
 	return &billing, &pasien, billingTindakanList, billingICD9List, billingICD10List, nil
 }
+
+
+//update billing pasien

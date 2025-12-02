@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"main.go/database"
-	"main.go/handlers"
+	"backendcareit/database"
+	"backendcareit/handlers"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"

@@ -137,6 +137,12 @@ func (Pasien) TableName() string {
 	return "pasien"
 }
 
+//login dokter
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
+
 //billing pasien
 
 type BillingPasien struct {
@@ -148,16 +154,8 @@ type BillingPasien struct {
 	ID_Dokter        int        `gorm:"column:ID_Dokter"`
 	Total_Tarif_RS   float64    `gorm:"column:Total_Tarif_RS"`
 	Total_Tarif_BPJS float64    `gorm:"column:Total_klaim"`
-	Billing_sign     string     `gorm:"column:Billing_sign"`
+	Billing_sign     string     `gorm:"column:Billing_Sign"`
 }
-
-type Billing_sign string
-
-const (
-	Billing_Sign_hijau  Billing_sign = "hijau"
-	Billing_Sign_kuning Billing_sign = "kuning"
-	Billing_Sign_merah  Billing_sign = "merah"
-)
 
 type Cara_bayar string
 
@@ -251,3 +249,16 @@ type Post_INACBG_Admin struct {
 	Total_klaim  float64  `json:"total_klaim"`
 	Billing_sign string   `json:"billing_sign"`
 }
+
+// login dokter
+type loginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
+
+func (loginRequest) TableName() string {
+	return "dokter"
+}
+
+
+// getpasienwithallicd9andicd10,andtindakanrs

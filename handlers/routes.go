@@ -1,14 +1,18 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
-	"main.go/database"
-	"main.go/models"
-	"main.go/services"
+	"backendcareit/database"
+	"backendcareit/middleware"
+	"backendcareit/models"
+	"backendcareit/services"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func RegisterRoutes(r *gin.Engine) {
@@ -37,6 +41,8 @@ func RegisterRoutes(r *gin.Engine) {
 	r.GET("/admin/billing", GetAllBillingHandler)
 	// Admin: post INACBG
 	r.POST("/admin/inacbg", PostINACBGAdminHandler)
+	// Login dokter
+	r.POST("/login", LoginDokterHandler(database.DB))
 }
 
 // Health check
@@ -372,4 +378,70 @@ func SearchPasienHandler(c *gin.Context) {
 		"status": "success",
 		"data":   pasien,
 	})
+}
+
+// Login dokter
+func LoginDokterHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req models.LoginRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  "error",
+				"message": "Payload login tidak valid",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		email := strings.TrimSpace(strings.ToLower(req.Email))
+
+		var dokter models.Dokter
+		if err := db.Where("LOWER(Email_UB) = ? OR LOWER(Email_Pribadi) = ?", email, email).
+			First(&dokter).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"status":  "error",
+					"message": "Email atau password salah",
+				})
+				return
+			}
+
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status":  "error",
+				"message": "Gagal memproses login",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		// Password check — skip if password column is empty
+		if dokter.Password != "" && dokter.Password != req.Password {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status":  "error",
+				"message": "Email atau password salah",
+			})
+			return
+		}
+
+		token, err := middleware.GenerateToken(dokter, email)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status":  "error",
+				"message": "Gagal membuat token",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"token":  token,
+			"dokter": gin.H{
+				"id":    dokter.ID_Dokter,
+				"nama":  dokter.Nama_Dokter,
+				"ksm":   dokter.KSM,
+				"email": email,
+			},
+		})
+	}
 }

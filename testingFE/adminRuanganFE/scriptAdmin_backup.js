@@ -4,7 +4,6 @@ let billingData = [];
 let currentEditingBilling = null;
 let inacbgCodes = [];
 let tarifCache = {}; // Cache for tarif data
-let isManualInacbgMode = false; // Track if user is in manual input mode
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -83,14 +82,11 @@ function renderBillingTable() {
 
 // Get billing sign badge class and color
 function getBillingSignColor(billingSign) {
-    const normalizedSign = (billingSign || '').toString().toLowerCase();
-    switch (normalizedSign) {
+    switch (billingSign) {
         case 'hijau':
             return '#28a745';
         case 'kuning':
             return '#ffc107';
-        case 'orange':
-            return '#fd7e14';
         case 'merah':
         case 'created':
             return '#dc3545';
@@ -100,14 +96,11 @@ function getBillingSignColor(billingSign) {
 }
 
 function getBillingSignBadgeClass(billingSign) {
-    const normalizedSign = (billingSign || '').toString().toLowerCase();
-    switch (normalizedSign) {
+    switch (billingSign) {
         case 'hijau':
             return 'hijau';
         case 'kuning':
             return 'kuning';
-        case 'orange':
-            return 'orange';
         case 'merah':
             return 'merah';
         case 'created':
@@ -196,12 +189,8 @@ function openEditModal(billingId) {
 
     // Reset INACBG form
     inacbgCodes = [];
-    isManualInacbgMode = false;
     document.getElementById('inacbgCode').value = '';
     document.getElementById('inacbgCode').disabled = true;
-    document.getElementById('inacbgCode').classList.remove('d-none');
-    document.getElementById('inacbgCodeManual').value = '';
-    document.getElementById('inacbgCodeManual').classList.add('d-none');
     document.getElementById('inacbgCode').innerHTML = '<option value="">-- Pilih Tipe INACBG Dulu --</option>';
     document.getElementById('tipeInacbg').value = '';
     document.getElementById('totalKlaim').value = '';
@@ -211,26 +200,6 @@ function openEditModal(billingId) {
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('editModal'));
     modal.show();
-}
-
-// Toggle between dropdown and manual input
-function toggleInacbgInput() {
-    isManualInacbgMode = !isManualInacbgMode;
-    const codeSelect = document.getElementById('inacbgCode');
-    const codeManual = document.getElementById('inacbgCodeManual');
-    
-    if (isManualInacbgMode) {
-        // Switch to manual input
-        codeSelect.classList.add('d-none');
-        codeManual.classList.remove('d-none');
-        codeManual.focus();
-        codeManual.value = '';
-    } else {
-        // Switch back to dropdown
-        codeSelect.classList.remove('d-none');
-        codeManual.classList.add('d-none');
-        codeManual.value = '';
-    }
 }
 
 // Setup event listeners
@@ -246,14 +215,6 @@ function setupEventListeners() {
 
     // Search input
     document.getElementById('searchInput').addEventListener('input', searchBilling);
-
-    // Manual input enter key
-    document.getElementById('inacbgCodeManual').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            addInacbgCode();
-        }
-    });
 }
 
 // Load INACBG codes based on tipe
@@ -308,8 +269,25 @@ async function loadInacbgCodes() {
     }
 }
 
-// Get tarif for a code from cache or return 0
-function getTarifForCode(code, tipe, kelas = null) {
+// Add INACBG code
+async function addInacbgCode() {
+    const codeSelect = document.getElementById('inacbgCode');
+    const selectedOption = codeSelect.options[codeSelect.selectedIndex];
+    const code = codeSelect.value.trim();
+    const codeText = selectedOption.textContent.trim();
+    const tipe = document.getElementById('tipeInacbg').value;
+
+    if (!code) {
+        alert('Pilih kode INACBG terlebih dahulu');
+        return;
+    }
+
+    if (inacbgCodes.some(c => c.value === code)) {
+        alert('Kode sudah ditambahkan');
+        return;
+    }
+
+    // Get tarif for this code
     let tarif = 0;
     const tarifData = tarifCache[tipe] || [];
     const tarifItem = tarifData.find(item => (item.KodeINA || item.kodeINA) === code);
@@ -317,7 +295,7 @@ function getTarifForCode(code, tipe, kelas = null) {
     if (tarifItem) {
         if (tipe === 'RI') {
             // Get tarif based on patient class
-            if (!kelas) kelas = currentEditingBilling.Kelas;
+            const kelas = currentEditingBilling.Kelas;
             if (kelas === '1') {
                 tarif = tarifItem.Kelas1 || 0;
             } else if (kelas === '2') {
@@ -331,60 +309,8 @@ function getTarifForCode(code, tipe, kelas = null) {
         }
     }
 
-    return tarif;
-}
-
-// Add INACBG code (from dropdown or manual input)
-async function addInacbgCode() {
-    const tipe = document.getElementById('tipeInacbg').value;
-
-    if (!tipe) {
-        alert('Pilih tipe INACBG terlebih dahulu');
-        return;
-    }
-
-    let code = '';
-    let codeText = '';
-
-    if (isManualInacbgMode) {
-        // Manual input mode
-        const manualInput = document.getElementById('inacbgCodeManual').value.trim().toUpperCase();
-        if (!manualInput) {
-            alert('Masukkan kode INACBG');
-            return;
-        }
-        code = manualInput;
-        codeText = manualInput; // Manual input, use code as text
-    } else {
-        // Dropdown mode
-        const codeSelect = document.getElementById('inacbgCode');
-        const selectedOption = codeSelect.options[codeSelect.selectedIndex];
-        code = codeSelect.value.trim();
-        codeText = selectedOption.textContent.trim();
-
-        if (!code) {
-            alert('Pilih kode INACBG terlebih dahulu');
-            return;
-        }
-    }
-
-    if (inacbgCodes.some(c => c.value === code)) {
-        alert('Kode sudah ditambahkan');
-        return;
-    }
-
-    // Get tarif for this code
-    const tarif = getTarifForCode(code, tipe);
-
     inacbgCodes.push({ value: code, text: codeText, tarif: tarif });
-    
-    // Clear input/select
-    if (isManualInacbgMode) {
-        document.getElementById('inacbgCodeManual').value = '';
-    } else {
-        document.getElementById('inacbgCode').value = '';
-    }
-    
+    codeSelect.value = '';
     renderCodeList();
     calculateTotalKlaim(); // Update total after adding code
 }
@@ -415,9 +341,6 @@ function renderCodeList() {
 function calculateTotalKlaim() {
     const total = inacbgCodes.reduce((sum, code) => sum + (code.tarif || 0), 0);
     document.getElementById('totalKlaim').value = total.toFixed(0);
-
-    // Update billing sign display based on total klaim vs total tarif RS
-    updateBillingSignDisplay();
 }
 
 // Remove INACBG code
@@ -425,66 +348,6 @@ function removeInacbgCode(index) {
     inacbgCodes.splice(index, 1);
     renderCodeList();
     calculateTotalKlaim(); // Update total after removing code
-}
-
-// Hitung billing sign berdasarkan rumus:
-// persentase = 100% - ((total_klaim - total_tarif_rs) / total_klaim * 100%)
-// yang ekivalen dengan (total_tarif_rs / total_klaim) * 100
-function calculateBillingSign() {
-    const totalTarifRs = parseFloat(document.getElementById('modalTotalTarif').value) || 0;
-    const totalKlaim = parseFloat(document.getElementById('totalKlaim').value) || 0;
-
-    if (totalTarifRs <= 0 || totalKlaim <= 0) {
-        return { sign: null, percentage: 0 };
-    }
-
-    const percentage = (totalTarifRs / totalKlaim) * 100;
-    let sign = 'hijau';
-
-    if (percentage <= 25) {
-        sign = 'hijau';
-    } else if (percentage >= 26 && percentage <= 50) {
-        sign = 'kuning';
-    } else if (percentage >= 51 && percentage <= 75) {
-        sign = 'orange';
-    } else if (percentage >= 76) {
-        sign = 'merah';
-    }
-
-    return { sign, percentage };
-}
-
-// Update tampilan billing sign di modal
-function updateBillingSignDisplay() {
-    const container = document.getElementById('billingSignContainer');
-    const badgeEl = document.getElementById('billingSignBadge');
-    const textEl = document.getElementById('billingSignText');
-
-    if (!container || !badgeEl || !textEl) return;
-
-    const { sign, percentage } = calculateBillingSign();
-
-    if (!sign) {
-        badgeEl.className = 'badge bg-secondary';
-        badgeEl.textContent = '-';
-        textEl.textContent = '';
-        return;
-    }
-
-    const color = getBillingSignColor(sign);
-    badgeEl.className = 'badge';
-    badgeEl.style.backgroundColor = color;
-    badgeEl.textContent = sign.toUpperCase();
-
-    const roundedPct = percentage.toFixed(2);
-    textEl.textContent = `Tarif RS ≈ ${roundedPct}% dari BPJS`;
-}
-
-// Format billing sign ke Title Case agar sesuai enum di DB
-function formatBillingSignValue(sign) {
-    if (!sign) return '';
-    const lower = sign.toLowerCase();
-    return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
 // Submit INACBG form
@@ -515,17 +378,13 @@ async function submitInacbgForm(e) {
         return;
     }
 
-    // Hitung billing sign berdasarkan total tarif RS dan total klaim
-    const { sign: billingSign } = calculateBillingSign();
-    const formattedBillingSign = formatBillingSignValue(billingSign);
-
     // Prepare payload
     const payload = {
         id_billing: currentEditingBilling.id_billing,
         tipe_inacbg: tipeInacbg,
         kode_inacbg: inacbgCodes.map(c => c.value), // Extract just the codes
         total_klaim: totalKlaim,
-        billing_sign: formattedBillingSign // kirim billing sign sesuai enum DB
+        billing_sign: 'created' // or any status you want
     };
 
     try {
