@@ -791,6 +791,100 @@ let ruanganDataList = []; // Store semua data ruangan untuk lookup
 let pendingRuanganId = null; // Store ruangan ID yang perlu di-set setelah load selesai
 let tarifRSDataList = []; // Store semua data tarif RS untuk lookup harga
 
+// ============= RIWAYAT BILLING AKTIF (TINDAKAN & ICD) =============
+function clearBillingHistory() {
+    const infoEl = document.getElementById('billing_history_info');
+    const ulTindakan = document.getElementById('history_tindakan_rs');
+    const ulICD9 = document.getElementById('history_icd9');
+    const ulICD10 = document.getElementById('history_icd10');
+
+    if (infoEl) {
+        infoEl.textContent = 'Belum ada data yang dimuat. Pilih pasien untuk melihat riwayat.';
+        infoEl.classList.remove('text-danger');
+        infoEl.classList.add('text-muted');
+    }
+    if (ulTindakan) ulTindakan.innerHTML = '';
+    if (ulICD9) ulICD9.innerHTML = '';
+    if (ulICD10) ulICD10.innerHTML = '';
+}
+
+async function loadBillingAktifHistory(namaPasien) {
+    const infoEl = document.getElementById('billing_history_info');
+    const ulTindakan = document.getElementById('history_tindakan_rs');
+    const ulICD9 = document.getElementById('history_icd9');
+    const ulICD10 = document.getElementById('history_icd10');
+
+    if (!namaPasien || !infoEl || !ulTindakan || !ulICD9 || !ulICD10) {
+        return;
+    }
+
+    ulTindakan.innerHTML = '';
+    ulICD9.innerHTML = '';
+    ulICD10.innerHTML = '';
+    infoEl.textContent = 'Memuat riwayat billing aktif...';
+    infoEl.classList.remove('text-muted', 'text-danger');
+
+    try {
+        const res = await fetchWithTimeout(
+            `${API_BASE}/billing/aktif?nama_pasien=${encodeURIComponent(namaPasien)}`
+        );
+
+        if (res.status === 404) {
+            infoEl.textContent = 'Tidak ada billing aktif untuk pasien ini.';
+            infoEl.classList.remove('text-danger');
+            infoEl.classList.add('text-muted');
+            return;
+        }
+
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const body = await res.json().catch(() => ({}));
+        const data = body.data || {};
+
+        const tindakan = Array.isArray(data.tindakan_rs) ? data.tindakan_rs : [];
+        const icd9 = Array.isArray(data.icd9) ? data.icd9 : [];
+        const icd10 = Array.isArray(data.icd10) ? data.icd10 : [];
+
+        if (tindakan.length === 0 && icd9.length === 0 && icd10.length === 0) {
+            infoEl.textContent = 'Belum ada tindakan atau ICD yang tercatat pada billing aktif.';
+            infoEl.classList.remove('text-danger');
+            infoEl.classList.add('text-muted');
+            return;
+        }
+
+        infoEl.textContent = 'Menampilkan riwayat dari billing aktif pasien ini.';
+        infoEl.classList.remove('text-danger', 'text-muted');
+
+        tindakan.forEach(t => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item py-1';
+            li.textContent = t;
+            ulTindakan.appendChild(li);
+        });
+
+        icd9.forEach(i => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item py-1';
+            li.textContent = i;
+            ulICD9.appendChild(li);
+        });
+
+        icd10.forEach(i => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item py-1';
+            li.textContent = i;
+            ulICD10.appendChild(li);
+        });
+    } catch (error) {
+        console.error('Error loading billing history:', error);
+        infoEl.textContent = 'Error memuat riwayat billing. Coba lagi.';
+        infoEl.classList.remove('text-muted');
+        infoEl.classList.add('text-danger');
+    }
+}
+
 // Helper function untuk set ruangan dari ID atau Nama
 function setRuanganFromId(ruanganIdOrNama) {
     console.log('setRuanganFromId called with:', ruanganIdOrNama);
@@ -1031,6 +1125,9 @@ function fillPasien(p) {
             setRuanganFromId(p.Ruangan);
         }
     }
+
+    // Setelah pasien dipilih, muat riwayat billing aktif (tindakan & ICD sebelumnya)
+    loadBillingAktifHistory(p.Nama_Pasien);
 }
 
 // Deteksi jika user mengubah nama pasien - clear ID jika berbeda
@@ -1043,6 +1140,7 @@ inputPasien.addEventListener('change', function() {
             dropdownInstances['ruangan'].setValue('');
         }
         document.getElementById('kelas').value = '';
+        clearBillingHistory();
     }
 });
 
@@ -1114,7 +1212,8 @@ function initBillingFormSubmission() {
             ruangan: getDropdownValue('ruangan'),
             kelas: (document.getElementById('kelas')?.value || '').trim(),
             tindakan_rs: getDropdownValue('tarif_rs'),
-            tanggal_keluar: (document.getElementById('tanggal_keluar')?.value || '').trim(),
+            // tanggal_keluar sekarang diisi Admin Billing, tidak perlu disimpan di draft FE dokter
+            tanggal_keluar: '',
             icd9: getDropdownValue('icd9'),
             icd10: getDropdownValue('icd10'),
             cara_bayar: (document.getElementById('cara_bayar')?.value || '').trim(),
@@ -1165,7 +1264,6 @@ function initBillingFormSubmission() {
         document.getElementById('usia').value = draft.usia || '';
         document.getElementById('kelas').value = draft.kelas || '';
         document.getElementById('cara_bayar').value = draft.cara_bayar || '';
-        document.getElementById('tanggal_keluar').value = draft.tanggal_keluar || '';
         document.getElementById('total_tarif_rs').value = draft.total_tarif_rs ? draft.total_tarif_rs.toLocaleString('id-ID') : document.getElementById('total_tarif_rs').value;
 
         // Dropdowns / multi-selects - may require retries until dropdownInstances loaded
@@ -1215,7 +1313,8 @@ function initBillingFormSubmission() {
             ruangan: getDropdownValue('ruangan'),
             kelas: (document.getElementById('kelas')?.value || '').trim(),
             tindakan_rs: getDropdownValue('tarif_rs'),
-            tanggal_keluar: (document.getElementById('tanggal_keluar')?.value || '').trim(),
+            // tanggal_keluar tidak dikirim dari FE dokter
+            tanggal_keluar: '',
             icd9: getDropdownValue('icd9'),
             icd10: getDropdownValue('icd10'),
             cara_bayar: (document.getElementById('cara_bayar')?.value || '').trim(),
@@ -1229,7 +1328,6 @@ function initBillingFormSubmission() {
         if (!payload.usia) errors.push('Usia wajib diisi.');
         if (!payload.ruangan) errors.push('Ruangan wajib dipilih.');
         if (!payload.kelas) errors.push('Kelas wajib dipilih.');
-        if (!payload.tanggal_keluar) errors.push('Tanggal Keluar wajib dipilih.');
         if (!Array.isArray(payload.tindakan_rs) || payload.tindakan_rs.length === 0) errors.push('Pilih minimal satu Tindakan RS.');
         if (!Array.isArray(payload.icd9) || payload.icd9.length === 0) errors.push('Pilih minimal satu ICD 9.');
         if (!Array.isArray(payload.icd10) || payload.icd10.length === 0) errors.push('Pilih minimal satu ICD 10.');

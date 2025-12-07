@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"backendcareit/models"
 
@@ -32,24 +33,59 @@ func Post_INACBG_Admin(db *gorm.DB, input models.Post_INACBG_Admin) error {
 		return errors.New("Kode_INACBG tidak boleh kosong")
 	}
 
-	// 1. Update total klaim dan billing_sign
+	// 1. Ambil billing dulu untuk dapatkan total klaim lama
+	var existingBilling models.BillingPasien
+	if err := tx.Where("ID_Billing = ?", input.ID_Billing).First(&existingBilling).Error; err != nil {
+		tx.Rollback()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("billing dengan ID_Billing=%d tidak ditemukan", input.ID_Billing)
+		}
+		return fmt.Errorf("gagal mengambil billing: %w", err)
+	}
+
+	// Hitung total klaim baru = lama + tambahan
+	newTotalKlaim := existingBilling.Total_Tarif_BPJS + input.Total_klaim
+
+	// Parse Tanggal_Keluar jika diisi oleh admin
+	var keluarPtr *time.Time
+	if input.Tanggal_keluar != "" && input.Tanggal_keluar != "null" {
+		s := input.Tanggal_keluar
+		var parsed time.Time
+		var err error
+		layouts := []string{time.RFC3339, "2006-01-02 15:04:05", "2006-01-02"}
+		for _, layout := range layouts {
+			parsed, err = time.Parse(layout, s)
+			if err == nil {
+				t := parsed
+				keluarPtr = &t
+				break
+			}
+		}
+		if keluarPtr == nil {
+			tx.Rollback()
+			return fmt.Errorf("invalid tanggal_keluar format: %s", input.Tanggal_keluar)
+		}
+	}
+
+	// 2. Update total klaim kumulatif, billing_sign, dan tanggal keluar (jika diisi)
+	updateData := map[string]interface{}{
+		"Total_klaim":  newTotalKlaim,
+		"Billing_sign": input.Billing_sign,
+	}
+	if keluarPtr != nil {
+		updateData["Tanggal_Keluar"] = keluarPtr
+	}
+
 	res := tx.Model(&models.BillingPasien{}).
 		Where("ID_Billing = ?", input.ID_Billing).
-		Updates(map[string]interface{}{
-			"Total_klaim":  input.Total_klaim,
-			"Billing_sign": input.Billing_sign,
-		})
+		Updates(updateData)
 
 	if res.Error != nil {
 		tx.Rollback()
 		return fmt.Errorf("gagal update billing: %w", res.Error)
 	}
-	if res.RowsAffected == 0 {
-		tx.Rollback()
-		return fmt.Errorf("billing dengan ID_Billing=%d tidak ditemukan", input.ID_Billing)
-	}
 
-	// 2. Bulk insert kode INACBG berdasarkan tipe_inacbg
+	// 3. Bulk insert kode INACBG berdasarkan tipe_inacbg
 	switch input.Tipe_inacbg {
 	case "RI":
 		records := make([]models.Billing_INACBG_RI, 0, len(input.Kode_INACBG))
@@ -164,6 +200,38 @@ func GetAllBilling(db *gorm.DB) ([]models.Request_Admin_Inacbg, error) {
 		icd10Map[row.ID_Billing] = append(icd10Map[row.ID_Billing], row.Kode)
 	}
 
+	// Ambil INACBG RI
+	inacbgRIMap := make(map[int][]string)
+	var inacbgRIRows []struct {
+		ID_Billing int
+		Kode       string
+	}
+	if err := db.Table("billing_inacbg_ri").
+		Where("ID_Billing IN ?", billingIDs).
+		Select("ID_Billing, ID_INACBG_RI as Kode").
+		Scan(&inacbgRIRows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range inacbgRIRows {
+		inacbgRIMap[row.ID_Billing] = append(inacbgRIMap[row.ID_Billing], row.Kode)
+	}
+
+	// Ambil INACBG RJ
+	inacbgRJMap := make(map[int][]string)
+	var inacbgRJRows []struct {
+		ID_Billing int
+		Kode       string
+	}
+	if err := db.Table("billing_inacbg_rj").
+		Where("ID_Billing IN ?", billingIDs).
+		Select("ID_Billing, ID_INACBG_RJ as Kode").
+		Scan(&inacbgRJRows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range inacbgRJRows {
+		inacbgRJMap[row.ID_Billing] = append(inacbgRJMap[row.ID_Billing], row.Kode)
+	}
+
 	// Compile final response
 	var result []models.Request_Admin_Inacbg
 
@@ -177,9 +245,12 @@ func GetAllBilling(db *gorm.DB) ([]models.Request_Admin_Inacbg, error) {
 			Kelas:          pasien.Kelas,
 			Ruangan:        pasien.Ruangan,
 			Total_Tarif_RS: b.Total_Tarif_RS,
+			Total_Klaim:    b.Total_Tarif_BPJS,
 			Tindakan_RS:    tindakanMap[b.ID_Billing],
 			ICD9:           icd9Map[b.ID_Billing],
 			ICD10:          icd10Map[b.ID_Billing],
+			INACBG_RI:      inacbgRIMap[b.ID_Billing],
+			INACBG_RJ:      inacbgRJMap[b.ID_Billing],
 			Billing_sign:   b.Billing_sign,
 		}
 

@@ -68,3 +68,4 @@ data untuk admin  dari be:
     "status": "success",
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImhhamVuZ3d1bGFuZGFyaS5ma0B1Yi5hYy5pZCIsImV4cCI6MTc2NDc1NzIxMCwiaWF0IjoxNzY0NjcwODEwLCJpZCI6Miwia3NtIjoiQW5hayIsIm5hbWEiOiJkci4gSGFqZW5nIFd1bGFuZGFyaSwgU3AuQSwgTWJpb21lZCJ9.X1PyxjbC1Ht3DFbvi4svqXY4hsNIS_nmYMROkRaK-Ko"
 }
+jadi data yang dihitung cuma yang rawat inap nanti yang isi tanggal keluar berarti admin billing dan nanti total tarif dan total klaim nanti di tampilin juga ketika datanya di tampilin sama kaya tindakan dan tarif rs nanti di admin billing juga bisa liat data tindakan lama dan icd lama dan tindakan baru dan icd bari dan inacbg lama dan inacbg baru plus total tarif yang lama di tambah yang barui dan total klaim lama nanti setelah dimasukan ditambah lagi sama total klaim baru baru dihitung billing sign baru paham gak

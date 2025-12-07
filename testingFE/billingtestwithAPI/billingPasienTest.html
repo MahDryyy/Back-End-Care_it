@@ -86,10 +86,7 @@
                     <option value="UMUM">Umum</option>
                 </select>
             </div>
-            <div class="col-md-6 mb-3">
-                <label class="form-label">Tanggal Keluar</label>
-                <input type="date" class="form-control" id="tanggal_keluar" name="tanggal_keluar">
-            </div>
+            <!-- Tanggal Keluar diisi oleh Admin Billing, bukan di form dokter -->
                 </div>
 
                 <!-- TINDAKAN -->
@@ -143,6 +140,28 @@
                 </div>
             </div>
             <select class="form-select d-none" id="select_icd10" name="icd10" multiple></select>
+        </div>
+
+        <!-- RIWAYAT BILLING AKTIF (TINDAKAN & ICD SEBELUMNYA) -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">Riwayat Tindakan & ICD (Billing Aktif)</label>
+            <div id="billing_history_info" class="small text-muted mb-2">
+                Belum ada data yang dimuat. Pilih pasien untuk melihat riwayat.
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <h6 class="fw-semibold">Tindakan RS</h6>
+                    <ul id="history_tindakan_rs" class="list-group small"></ul>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="fw-semibold">ICD 9</h6>
+                    <ul id="history_icd9" class="list-group small"></ul>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="fw-semibold">ICD 10</h6>
+                    <ul id="history_icd10" class="list-group small"></ul>
+                </div>
+            </div>
         </div>
         
                 <!-- TOTAL TARIF RS -->

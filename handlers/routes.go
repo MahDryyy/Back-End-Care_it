@@ -33,10 +33,12 @@ func RegisterRoutes(r *gin.Engine) {
 	r.GET("/tarifRS", listTarifRSHandler)
 	r.GET("/tarifRS/:kode", detailTarifRSHandler)
 	r.GET("/tarifRSByKategori/:kategori", listTarifRSByKategoriHandler)
-	// Routes pasien
+	// Routes pasien & billing
 	r.GET("/pasien/:id", GetPasien)
 	r.GET("/pasien/search", SearchPasienHandler)
 	r.POST("/billing", CreateBillingHandler)
+	// FE: lihat billing aktif + tindakan & ICD sebelumnya (by nama pasien)
+	r.GET("/billing/aktif", GetBillingAktifByNamaHandler)
 	// Admin: get all billing
 	r.GET("/admin/billing", GetAllBillingHandler)
 	// Admin: post INACBG
@@ -358,6 +360,49 @@ func CreateBillingHandler(c *gin.Context) {
 		},
 	})
 
+}
+
+// GetBillingAktifByNamaHandler
+// Endpoint: GET /billing/aktif?nama_pasien=...
+// Mengembalikan billing aktif + semua tindakan & ICD yang sudah pernah diinput
+func GetBillingAktifByNamaHandler(c *gin.Context) {
+	nama := c.Query("nama_pasien")
+	if strings.TrimSpace(nama) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "nama_pasien wajib diisi",
+		})
+		return
+	}
+
+	billing, tindakan, icd9, icd10, err := services.GetBillingDetailAktifByNama(nama)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"status":  "not_found",
+				"message": "Billing aktif untuk pasien tersebut tidak ditemukan",
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Gagal mengambil data billing",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Billing aktif ditemukan",
+		"data": gin.H{
+			"billing":     billing,
+			"tindakan_rs": tindakan,
+			"icd9":        icd9,
+			"icd10":       icd10,
+		},
+	})
 }
 
 //search pasien by nama handler

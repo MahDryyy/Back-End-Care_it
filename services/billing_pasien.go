@@ -61,6 +61,77 @@ func SearchPasienByNama(nama string) ([]models.Pasien, error) {
 	return pasien, nil
 }
 
+// GetBillingDetailAktifByNama mengambil billing terakhir + semua tindakan & ICD untuk satu pasien (by nama)
+func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []string, []string, []string, error) {
+	// Cari pasien dulu
+	var pasien models.Pasien
+	if err := database.DB.Where("Nama_Pasien = ?", namaPasien).First(&pasien).Error; err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	// Cari billing terakhir pasien ini (paling baru berdasarkan ID_Billing)
+	var billing models.BillingPasien
+	if err := database.DB.
+		Where("ID_Pasien = ?", pasien.ID_Pasien).
+		Order("ID_Billing DESC").
+		First(&billing).Error; err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	// Ambil semua tindakan (join billing_tindakan -> tarif_rs)
+	var tindakanJoin []struct {
+		Nama string `gorm:"column:Tindakan_RS"`
+	}
+	if err := database.DB.
+		Table("billing_tindakan bt").
+		Select("tr.Tindakan_RS").
+		Joins("JOIN tarif_rs tr ON bt.ID_Tarif_RS = tr.ID_Tarif_RS").
+		Where("bt.ID_Billing = ?", billing.ID_Billing).
+		Scan(&tindakanJoin).Error; err != nil {
+		return nil, nil, nil, nil, err
+	}
+	tindakanNames := make([]string, 0, len(tindakanJoin))
+	for _, t := range tindakanJoin {
+		tindakanNames = append(tindakanNames, t.Nama)
+	}
+
+	// Ambil semua ICD9
+	var icd9Join []struct {
+		Prosedur string `gorm:"column:Prosedur"`
+	}
+	if err := database.DB.
+		Table("billing_icd9 bi").
+		Select("i.Prosedur").
+		Joins("JOIN icd9 i ON bi.ID_ICD9 = i.ID_ICD9").
+		Where("bi.ID_Billing = ?", billing.ID_Billing).
+		Scan(&icd9Join).Error; err != nil {
+		return nil, nil, nil, nil, err
+	}
+	icd9Names := make([]string, 0, len(icd9Join))
+	for _, i := range icd9Join {
+		icd9Names = append(icd9Names, i.Prosedur)
+	}
+
+	// Ambil semua ICD10
+	var icd10Join []struct {
+		Diagnosa string `gorm:"column:Diagnosa"`
+	}
+	if err := database.DB.
+		Table("billing_icd10 bi").
+		Select("i.Diagnosa").
+		Joins("JOIN icd10 i ON bi.ID_ICD10 = i.ID_ICD10").
+		Where("bi.ID_Billing = ?", billing.ID_Billing).
+		Scan(&icd10Join).Error; err != nil {
+		return nil, nil, nil, nil, err
+	}
+	icd10Names := make([]string, 0, len(icd10Join))
+	for _, i := range icd10Join {
+		icd10Names = append(icd10Names, i.Diagnosa)
+	}
+
+	return &billing, tindakanNames, icd9Names, icd10Names, nil
+}
+
 // GetDokterByNama mencari dokter berdasarkan nama
 func GetDokterByNama(nama string) (*models.Dokter, error) {
 	var dokter models.Dokter
@@ -137,6 +208,7 @@ func DataFromFE(input models.BillingRequest) (
 	}
 
 	now := time.Now()
+
 	// Parse Tanggal_Keluar (frontend sends string). Accept multiple formats.
 	var keluarPtr *time.Time
 	if input.Tanggal_Keluar != "" && input.Tanggal_Keluar != "null" {
@@ -160,21 +232,61 @@ func DataFromFE(input models.BillingRequest) (
 		}
 	}
 
-	billing := models.BillingPasien{
-		ID_Pasien:        pasien.ID_Pasien,
-		Cara_Bayar:       input.Cara_Bayar,
-		Tanggal_masuk:    &now,
-		Tanggal_keluar:   keluarPtr,
-		ID_Dokter:        dokter.ID_Dokter,
-		Total_Tarif_RS:   input.Total_Tarif_RS,
-		Total_Tarif_BPJS: 0,
-		Billing_sign:     "created",
-	}
+	// ===========================
+	// 3. CARI / BUAT BILLING
+	// ===========================
+	// Catatan:
+	// - Kita anggap "billing aktif" = billing TERAKHIR untuk pasien ini (berdasarkan ID_Billing),
+	//   bukan lagi hanya yang Tanggal_Keluar IS NULL.
+	// - Supaya setiap input baru untuk pasien yang sama akan selalu nempel ke billing paling baru.
+	var billing models.BillingPasien
+	billingResult := tx.
+		Where("ID_Pasien = ?", pasien.ID_Pasien).
+		Order("ID_Billing DESC").
+		First(&billing)
 
-	if err := tx.Create(&billing).Error; err != nil {
-		tx.Rollback()
-		return nil, nil, nil, nil, nil,
-			fmt.Errorf("gagal membuat billing: %s", err.Error())
+	if billingResult.Error != nil {
+		if errors.Is(billingResult.Error, gorm.ErrRecordNotFound) {
+			// Belum ada billing aktif → buat billing baru
+			billing = models.BillingPasien{
+				ID_Pasien:        pasien.ID_Pasien,
+				Cara_Bayar:       input.Cara_Bayar,
+				Tanggal_masuk:    &now,
+				Tanggal_keluar:   keluarPtr,
+				ID_Dokter:        dokter.ID_Dokter,
+				Total_Tarif_RS:   input.Total_Tarif_RS,
+				Total_Tarif_BPJS: 0,
+				Billing_sign:     "created",
+			}
+
+			if err := tx.Create(&billing).Error; err != nil {
+				tx.Rollback()
+				return nil, nil, nil, nil, nil,
+					fmt.Errorf("gagal membuat billing: %s", err.Error())
+			}
+		} else {
+			// Error lain saat cari billing
+			tx.Rollback()
+			return nil, nil, nil, nil, nil,
+				fmt.Errorf("gagal mencari billing pasien: %s", billingResult.Error.Error())
+		}
+	} else {
+		// Sudah ada billing aktif → update data billing lama, tambahkan tindakan / ICD baru
+		billing.Cara_Bayar = input.Cara_Bayar
+		billing.ID_Dokter = dokter.ID_Dokter
+		if keluarPtr != nil {
+			billing.Tanggal_keluar = keluarPtr
+		}
+		// Tambahkan total tarif dari request baru
+		billing.Total_Tarif_RS += input.Total_Tarif_RS
+		// Reset Billing_sign supaya admin billing tahu perlu review ulang
+		billing.Billing_sign = ""
+
+		if err := tx.Save(&billing).Error; err != nil {
+			tx.Rollback()
+			return nil, nil, nil, nil, nil,
+				fmt.Errorf("gagal update billing pasien: %s", err.Error())
+		}
 	}
 
 	var billingTindakanList []models.Billing_Tindakan
@@ -256,6 +368,5 @@ func DataFromFE(input models.BillingRequest) (
 
 	return &billing, &pasien, billingTindakanList, billingICD9List, billingICD10List, nil
 }
-
 
 //update billing pasien

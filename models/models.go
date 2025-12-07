@@ -153,7 +153,7 @@ type BillingPasien struct {
 	Tanggal_keluar   *time.Time `gorm:"column:Tanggal_Keluar"`
 	ID_Dokter        int        `gorm:"column:ID_Dokter"`
 	Total_Tarif_RS   float64    `gorm:"column:Total_Tarif_RS"`
-	Total_Tarif_BPJS float64    `gorm:"column:Total_klaim"`
+	Total_Tarif_BPJS float64    `gorm:"column:Total_Klaim"`
 	Billing_sign     string     `gorm:"column:Billing_Sign"`
 }
 
@@ -170,14 +170,16 @@ func (BillingPasien) TableName() string {
 
 // BillingRequest untuk menerima data dari frontend
 type BillingRequest struct {
-	Nama_Dokter    string   `json:"nama_dokter" binding:"required"`
-	Nama_Pasien    string   `json:"nama_pasien" binding:"required"`
-	Jenis_Kelamin  string   `json:"jenis_kelamin" binding:"required"`
-	Usia           int      `json:"usia" binding:"required"`
-	Ruangan        string   `json:"ruangan" binding:"required"`
-	Kelas          string   `json:"kelas" binding:"required"`
-	Tindakan_RS    []string `json:"tindakan_rs" binding:"required"`
-	Tanggal_Keluar string   `json:"tanggal_keluar" binding:"required"`
+	Nama_Dokter   string   `json:"nama_dokter" binding:"required"`
+	Nama_Pasien   string   `json:"nama_pasien" binding:"required"`
+	Jenis_Kelamin string   `json:"jenis_kelamin" binding:"required"`
+	Usia          int      `json:"usia" binding:"required"`
+	Ruangan       string   `json:"ruangan" binding:"required"`
+	Kelas         string   `json:"kelas" binding:"required"`
+	Tindakan_RS   []string `json:"tindakan_rs" binding:"required"`
+	// Tanggal_Keluar sekarang diisi oleh Admin Billing, bukan dokter/ruangan
+	// Field ini boleh kosong saat POST dari FE dokter
+	Tanggal_Keluar string   `json:"tanggal_keluar"`
 	ICD9           []string `json:"icd9" binding:"required"`
 	ICD10          []string `json:"icd10" binding:"required"`
 	Cara_Bayar     string   `json:"cara_bayar" binding:"required"`
@@ -235,19 +237,23 @@ type Request_Admin_Inacbg struct {
 	Kelas          string   `json:"Kelas"`
 	Ruangan        string   `json:"ruangan"`
 	Total_Tarif_RS float64  `json:"total_tarif_rs"`
+	Total_Klaim    float64  `json:"total_klaim"`
 	Tindakan_RS    []string `json:"tindakan_rs"`
 	ICD9           []string `json:"icd9"`
 	ICD10          []string `json:"icd10"`
+	INACBG_RI      []string `json:"inacbg_ri"`
+	INACBG_RJ      []string `json:"inacbg_rj"`
 	Billing_sign   string   `json:"billing_sign"`
 }
 
 // post ke data base
 type Post_INACBG_Admin struct {
-	ID_Billing   int      `json:"id_billing"`
-	Tipe_inacbg  string   `json:"tipe_inacbg"`
-	Kode_INACBG  []string `json:"kode_inacbg"`
-	Total_klaim  float64  `json:"total_klaim"`
-	Billing_sign string   `json:"billing_sign"`
+	ID_Billing     int      `json:"id_billing"`
+	Tipe_inacbg    string   `json:"tipe_inacbg"`
+	Kode_INACBG    []string `json:"kode_inacbg"`
+	Total_klaim    float64  `json:"total_klaim"`
+	Billing_sign   string   `json:"billing_sign"`
+	Tanggal_keluar string   `json:"tanggal_keluar"` // Diisi oleh admin billing
 }
 
 // login dokter
@@ -259,6 +265,5 @@ type loginRequest struct {
 func (loginRequest) TableName() string {
 	return "dokter"
 }
-
 
 // getpasienwithallicd9andicd10,andtindakanrs
