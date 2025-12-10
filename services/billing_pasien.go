@@ -61,12 +61,12 @@ func SearchPasienByNama(nama string) ([]models.Pasien, error) {
 	return pasien, nil
 }
 
-// GetBillingDetailAktifByNama mengambil billing terakhir + semua tindakan & ICD untuk satu pasien (by nama)
-func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []string, []string, []string, error) {
+// GetBillingDetailAktifByNama mengambil billing terakhir + semua tindakan & ICD & dokter untuk satu pasien (by nama)
+func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []string, []string, []string, []string, error) {
 	// Cari pasien dulu
 	var pasien models.Pasien
 	if err := database.DB.Where("Nama_Pasien = ?", namaPasien).First(&pasien).Error; err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 
 	// Cari billing terakhir pasien ini (paling baru berdasarkan ID_Billing)
@@ -75,7 +75,7 @@ func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []st
 		Where("ID_Pasien = ?", pasien.ID_Pasien).
 		Order("ID_Billing DESC").
 		First(&billing).Error; err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 
 	// Ambil semua tindakan (join billing_tindakan -> tarif_rs)
@@ -88,7 +88,7 @@ func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []st
 		Joins("JOIN tarif_rs tr ON bt.ID_Tarif_RS = tr.ID_Tarif_RS").
 		Where("bt.ID_Billing = ?", billing.ID_Billing).
 		Scan(&tindakanJoin).Error; err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	tindakanNames := make([]string, 0, len(tindakanJoin))
 	for _, t := range tindakanJoin {
@@ -105,7 +105,7 @@ func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []st
 		Joins("JOIN icd9 i ON bi.ID_ICD9 = i.ID_ICD9").
 		Where("bi.ID_Billing = ?", billing.ID_Billing).
 		Scan(&icd9Join).Error; err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	icd9Names := make([]string, 0, len(icd9Join))
 	for _, i := range icd9Join {
@@ -122,14 +122,33 @@ func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []st
 		Joins("JOIN icd10 i ON bi.ID_ICD10 = i.ID_ICD10").
 		Where("bi.ID_Billing = ?", billing.ID_Billing).
 		Scan(&icd10Join).Error; err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	icd10Names := make([]string, 0, len(icd10Join))
 	for _, i := range icd10Join {
 		icd10Names = append(icd10Names, i.Diagnosa)
 	}
 
-	return &billing, tindakanNames, icd9Names, icd10Names, nil
+	// Ambil semua dokter dari billing_dokter dengan tanggal
+	var dokterJoin []struct {
+		Nama    string     `gorm:"column:Nama_Dokter"`
+		Tanggal *time.Time `gorm:"column:Tanggal"`
+	}
+	if err := database.DB.
+		Table("billing_dokter bd").
+		Select("d.Nama_Dokter, bd.Tanggal").
+		Joins("JOIN dokter d ON bd.ID_Dokter = d.ID_Dokter").
+		Where("bd.ID_Billing = ?", billing.ID_Billing).
+		Order("bd.Tanggal ASC").
+		Scan(&dokterJoin).Error; err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+	dokterNames := make([]string, 0, len(dokterJoin))
+	for _, d := range dokterJoin {
+		dokterNames = append(dokterNames, d.Nama)
+	}
+
+	return &billing, tindakanNames, icd9Names, icd10Names, dokterNames, nil
 }
 
 // GetDokterByNama mencari dokter berdasarkan nama
@@ -198,13 +217,17 @@ func DataFromFE(input models.BillingRequest) (
 	}
 
 	// ===========================
-	// 2. CARI DOKTER
+	// 2. CARI SEMUA DOKTER
 	// ===========================
-	var dokter models.Dokter
-	if err := tx.Where("Nama_Dokter = ?", input.Nama_Dokter).First(&dokter).Error; err != nil {
-		tx.Rollback()
-		return nil, nil, nil, nil, nil,
-			fmt.Errorf("dokter '%s' tidak ditemukan", input.Nama_Dokter)
+	var dokterList []models.Dokter
+	for _, namaDokter := range input.Nama_Dokter {
+		var dokter models.Dokter
+		if err := tx.Where("Nama_Dokter = ?", namaDokter).First(&dokter).Error; err != nil {
+			tx.Rollback()
+			return nil, nil, nil, nil, nil,
+				fmt.Errorf("dokter '%s' tidak ditemukan", namaDokter)
+		}
+		dokterList = append(dokterList, dokter)
 	}
 
 	now := time.Now()
@@ -253,7 +276,6 @@ func DataFromFE(input models.BillingRequest) (
 				Cara_Bayar:       input.Cara_Bayar,
 				Tanggal_masuk:    &now,
 				Tanggal_keluar:   keluarPtr,
-				ID_Dokter:        dokter.ID_Dokter,
 				Total_Tarif_RS:   input.Total_Tarif_RS,
 				Total_Tarif_BPJS: 0,
 				Billing_sign:     "created",
@@ -273,7 +295,6 @@ func DataFromFE(input models.BillingRequest) (
 	} else {
 		// Sudah ada billing aktif → update data billing lama, tambahkan tindakan / ICD baru
 		billing.Cara_Bayar = input.Cara_Bayar
-		billing.ID_Dokter = dokter.ID_Dokter
 		if keluarPtr != nil {
 			billing.Tanggal_keluar = keluarPtr
 		}
@@ -286,6 +307,44 @@ func DataFromFE(input models.BillingRequest) (
 			tx.Rollback()
 			return nil, nil, nil, nil, nil,
 				fmt.Errorf("gagal update billing pasien: %s", err.Error())
+		}
+	}
+
+	// ===========================
+	// 4. SIMPAN DOKTER KE BILLING_DOKTER DENGAN TANGGAL
+	// ===========================
+	// Tidak menghapus dokter lama, hanya menambahkan dokter baru dengan tanggal hari ini
+	// Ini memungkinkan tracking dokter yang berbeda setiap hari
+	tanggalHariIni := time.Now()
+	// Normalisasi ke tanggal saja (hilangkan waktu)
+	tanggalHariIni = time.Date(tanggalHariIni.Year(), tanggalHariIni.Month(), tanggalHariIni.Day(), 0, 0, 0, 0, tanggalHariIni.Location())
+
+	// Insert semua dokter baru ke billing_dokter dengan tanggal hari ini
+	// Cek dulu apakah dokter dengan tanggal yang sama sudah ada (untuk menghindari duplikasi)
+	var billingDokterList []models.Billing_Dokter
+	for _, dokter := range dokterList {
+		// Cek apakah dokter ini sudah ada di billing dengan tanggal yang sama
+		var existing models.Billing_Dokter
+		result := tx.Where("ID_Billing = ? AND ID_Dokter = ? AND DATE(Tanggal) = DATE(?)",
+			billing.ID_Billing, dokter.ID_Dokter, tanggalHariIni).First(&existing)
+
+		// Jika belum ada, tambahkan
+		if result.Error != nil && errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			billingDokter := models.Billing_Dokter{
+				ID_Billing: billing.ID_Billing,
+				ID_Dokter:  dokter.ID_Dokter,
+				Tanggal:    &tanggalHariIni,
+			}
+			billingDokterList = append(billingDokterList, billingDokter)
+		}
+		// Jika sudah ada, skip (tidak perlu insert lagi)
+	}
+
+	if len(billingDokterList) > 0 {
+		if err := tx.Create(&billingDokterList).Error; err != nil {
+			tx.Rollback()
+			return nil, nil, nil, nil, nil,
+				fmt.Errorf("gagal insert billing dokter: %s", err.Error())
 		}
 	}
 

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -45,6 +46,8 @@ func RegisterRoutes(r *gin.Engine) {
 	r.POST("/admin/inacbg", PostINACBGAdminHandler)
 	// Login dokter
 	r.POST("/login", LoginDokterHandler(database.DB))
+	// Test email
+	r.POST("/test/email", SendEmailTestHandler)
 }
 
 // Health check
@@ -311,8 +314,6 @@ func GetPasien(c *gin.Context) {
 
 // CreateBillingHandler handler untuk membuat billing baru dari data frontend
 func CreateBillingHandler(c *gin.Context) {
-	var input models.BillingRequest
-
 	// Pastikan JSON
 	contentType := c.GetHeader("Content-Type")
 	if contentType != "application/json" {
@@ -324,8 +325,58 @@ func CreateBillingHandler(c *gin.Context) {
 		return
 	}
 
-	// Bind JSON ke struct
-	if err := c.ShouldBindJSON(&input); err != nil {
+	// Gunakan map untuk menerima JSON fleksibel (bisa string atau array untuk nama_dokter)
+	var rawData map[string]interface{}
+	if err := c.ShouldBindJSON(&rawData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "Data tidak valid",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Konversi nama_dokter dari string ke array jika perlu
+	if namaDokterRaw, ok := rawData["nama_dokter"]; ok {
+		switch v := namaDokterRaw.(type) {
+		case string:
+			// Jika string, konversi ke array dengan 1 elemen
+			if v != "" {
+				rawData["nama_dokter"] = []string{v}
+			} else {
+				rawData["nama_dokter"] = []string{}
+			}
+		case []interface{}:
+			// Jika sudah array, konversi ke []string
+			namaDokterArray := make([]string, 0, len(v))
+			for _, item := range v {
+				if str, ok := item.(string); ok && str != "" {
+					namaDokterArray = append(namaDokterArray, str)
+				}
+			}
+			rawData["nama_dokter"] = namaDokterArray
+		case []string:
+			// Sudah dalam format yang benar
+			rawData["nama_dokter"] = v
+		default:
+			rawData["nama_dokter"] = []string{}
+		}
+	}
+
+	// Konversi map ke BillingRequest
+	var input models.BillingRequest
+	// Marshal dan unmarshal untuk konversi yang aman
+	jsonData, err := json.Marshal(rawData)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "Gagal memproses data",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	if err := json.Unmarshal(jsonData, &input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  "error",
 			"message": "Data tidak valid",
@@ -375,7 +426,7 @@ func GetBillingAktifByNamaHandler(c *gin.Context) {
 		return
 	}
 
-	billing, tindakan, icd9, icd10, err := services.GetBillingDetailAktifByNama(nama)
+	billing, tindakan, icd9, icd10, dokter, err := services.GetBillingDetailAktifByNama(nama)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -401,6 +452,7 @@ func GetBillingAktifByNamaHandler(c *gin.Context) {
 			"tindakan_rs": tindakan,
 			"icd9":        icd9,
 			"icd10":       icd10,
+			"dokter":      dokter,
 		},
 	})
 }
@@ -489,4 +541,21 @@ func LoginDokterHandler(db *gorm.DB) gin.HandlerFunc {
 			},
 		})
 	}
+}
+
+// SendEmailTestHandler handler untuk test email
+func SendEmailTestHandler(c *gin.Context) {
+	if err := services.SendEmailTest(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Gagal mengirim email test",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Email test berhasil dikirim ke stylohype685@gmail.com dan pasaribumonica2@gmail.com",
+	})
 }

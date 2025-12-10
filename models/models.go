@@ -37,7 +37,7 @@ func (TarifRS) TableName() string {
 	return "tarif_rs"
 }
 
-//billing_inacbg_RI
+// billing_inacbg_RI
 type Billing_INACBG_RI struct {
 	ID_Billing  int    `gorm:"column:ID_Billing"`
 	Kode_INACBG string `gorm:"column:ID_INACBG_RI"`
@@ -47,7 +47,7 @@ func (Billing_INACBG_RI) TableName() string {
 	return "billing_inacbg_ri"
 }
 
-//billing_inacbg_RJ
+// billing_inacbg_RJ
 type Billing_INACBG_RJ struct {
 	ID_Billing  int    `gorm:"column:ID_Billing"`
 	Kode_INACBG string `gorm:"column:ID_INACBG_RJ"`
@@ -137,7 +137,7 @@ func (Pasien) TableName() string {
 	return "pasien"
 }
 
-//login dokter
+// login dokter
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
@@ -151,7 +151,6 @@ type BillingPasien struct {
 	Cara_Bayar       string     `gorm:"column:Cara_Bayar"`
 	Tanggal_masuk    *time.Time `gorm:"column:Tanggal_Masuk"`
 	Tanggal_keluar   *time.Time `gorm:"column:Tanggal_Keluar"`
-	ID_Dokter        int        `gorm:"column:ID_Dokter"`
 	Total_Tarif_RS   float64    `gorm:"column:Total_Tarif_RS"`
 	Total_Tarif_BPJS float64    `gorm:"column:Total_Klaim"`
 	Billing_sign     string     `gorm:"column:Billing_Sign"`
@@ -170,7 +169,7 @@ func (BillingPasien) TableName() string {
 
 // BillingRequest untuk menerima data dari frontend
 type BillingRequest struct {
-	Nama_Dokter   string   `json:"nama_dokter" binding:"required"`
+	Nama_Dokter   []string `json:"nama_dokter" binding:"required"` // Array untuk multiple doctors
 	Nama_Pasien   string   `json:"nama_pasien" binding:"required"`
 	Jenis_Kelamin string   `json:"jenis_kelamin" binding:"required"`
 	Usia          int      `json:"usia" binding:"required"`
@@ -229,6 +228,17 @@ func (Billing_ICD10) TableName() string {
 	return "billing_icd10"
 }
 
+// billing_Dokter - relasi many-to-many antara billing dan dokter dengan tracking tanggal
+type Billing_Dokter struct {
+	ID_Billing int        `gorm:"column:ID_Billing"`
+	ID_Dokter  int        `gorm:"column:ID_Dokter"`
+	Tanggal    *time.Time `gorm:"column:Tanggal"` // Tanggal kapan dokter menangani pasien
+}
+
+func (Billing_Dokter) TableName() string {
+	return "billing_dokter"
+}
+
 // Request untuk tampilan data Admin ( pengisian inacbg)
 type Request_Admin_Inacbg struct {
 	ID_Billing     int      `json:"id_billing"`
@@ -244,6 +254,7 @@ type Request_Admin_Inacbg struct {
 	INACBG_RI      []string `json:"inacbg_ri"`
 	INACBG_RJ      []string `json:"inacbg_rj"`
 	Billing_sign   string   `json:"billing_sign"`
+	Nama_Dokter    []string `json:"nama_dokter"` // Array untuk multiple doctors
 }
 
 // post ke data base

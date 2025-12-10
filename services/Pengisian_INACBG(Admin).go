@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"backendcareit/models"
@@ -114,7 +115,23 @@ func Post_INACBG_Admin(db *gorm.DB, input models.Post_INACBG_Admin) error {
 		}
 	}
 
-	return tx.Commit().Error
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	// 4. Kirim email ke dokter jika billing_sign tidak kosong
+	if input.Billing_sign != "" && strings.TrimSpace(input.Billing_sign) != "" {
+		// Kirim email secara async (jika gagal, tidak mempengaruhi proses utama)
+		// Log error jika ada, tapi tidak return error
+		if err := SendEmailBillingSignToDokter(input.ID_Billing); err != nil {
+			// Log error tapi tidak return error agar proses utama tetap berhasil
+			// Di production, bisa menggunakan logger yang lebih proper
+			fmt.Printf("Warning: Gagal mengirim email ke dokter untuk billing ID %d: %v\n", input.ID_Billing, err)
+		}
+	}
+
+	return nil
 }
 
 func GetAllBilling(db *gorm.DB) ([]models.Request_Admin_Inacbg, error) {
@@ -232,6 +249,24 @@ func GetAllBilling(db *gorm.DB) ([]models.Request_Admin_Inacbg, error) {
 		inacbgRJMap[row.ID_Billing] = append(inacbgRJMap[row.ID_Billing], row.Kode)
 	}
 
+	// Ambil dokter dari billing_dokter dengan urutan tanggal
+	dokterMap := make(map[int][]string)
+	var dokterRows []struct {
+		ID_Billing int
+		Nama       string
+	}
+	if err := db.Table("billing_dokter bd").
+		Select("bd.ID_Billing, d.Nama_Dokter as Nama").
+		Joins("JOIN dokter d ON bd.ID_Dokter = d.ID_Dokter").
+		Where("bd.ID_Billing IN ?", billingIDs).
+		Order("bd.Tanggal ASC").
+		Scan(&dokterRows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range dokterRows {
+		dokterMap[row.ID_Billing] = append(dokterMap[row.ID_Billing], row.Nama)
+	}
+
 	// Compile final response
 	var result []models.Request_Admin_Inacbg
 
@@ -252,6 +287,7 @@ func GetAllBilling(db *gorm.DB) ([]models.Request_Admin_Inacbg, error) {
 			INACBG_RI:      inacbgRIMap[b.ID_Billing],
 			INACBG_RJ:      inacbgRJMap[b.ID_Billing],
 			Billing_sign:   b.Billing_sign,
+			Nama_Dokter:    dokterMap[b.ID_Billing],
 		}
 
 		result = append(result, item)

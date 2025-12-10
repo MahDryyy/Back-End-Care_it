@@ -205,6 +205,17 @@ function openEditModal(billingId) {
     document.getElementById('modalIdPasien').value = currentEditingBilling.id_pasien || '';
     document.getElementById('modalKelas').value = currentEditingBilling.Kelas || '';
     
+    // Tampilkan dokter yang menangani pasien
+    const dokterList = currentEditingBilling.nama_dokter || [];
+    const dokterListEl = document.getElementById('dokterList');
+    if (dokterList.length > 0) {
+        dokterListEl.innerHTML = dokterList.map(dokter => 
+            `<span class="badge bg-info me-2 mb-1">${dokter}</span>`
+        ).join('');
+    } else {
+        dokterListEl.innerHTML = '<span class="text-muted">Belum ada data dokter</span>';
+    }
+    
     // Total tarif & total klaim kumulatif
     // Handle berbagai kemungkinan nama field (case-insensitive)
     const totalTarif = Number(currentEditingBilling.total_tarif_rs || currentEditingBilling.Total_Tarif_RS || 0);
