@@ -1,5 +1,5 @@
 // ============= CONFIGURATION =============
-const API_BASE = "http://192.168.1.3:8081";
+const API_BASE = "http://192.168.1.2:8081";
 const FETCH_TIMEOUT = 10000;
 
 // ============= UTILITY FUNCTIONS =============

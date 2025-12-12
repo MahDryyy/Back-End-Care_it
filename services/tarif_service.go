@@ -107,6 +107,19 @@ func GetRuangan() ([]models.Ruangan, error) {
 	return data, nil
 }
 
+// GetRuanganWithPasien - Get ruangan yang memiliki minimal 1 pasien
+func GetRuanganWithPasien(db *gorm.DB) ([]models.Ruangan, error) {
+	var data []models.Ruangan
+	// JOIN dengan pasien table dan filter yang punya pasien
+	if err := db.Distinct("ruangan.*").
+		Joins("INNER JOIN pasien ON ruangan.ID_Ruangan = pasien.ID_Ruangan").
+		Find(&data).Error; err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 // dokter
 func GetDokter() ([]models.Dokter, error) {
 	var data []models.Dokter

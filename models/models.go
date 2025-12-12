@@ -146,14 +146,14 @@ type LoginRequest struct {
 //billing pasien
 
 type BillingPasien struct {
-	ID_Billing       int        `gorm:"column:ID_Billing;primaryKey;autoIncrement"`
-	ID_Pasien        int        `gorm:"column:ID_Pasien"`
-	Cara_Bayar       string     `gorm:"column:Cara_Bayar"`
-	Tanggal_masuk    *time.Time `gorm:"column:Tanggal_Masuk"`
-	Tanggal_keluar   *time.Time `gorm:"column:Tanggal_Keluar"`
-	Total_Tarif_RS   float64    `gorm:"column:Total_Tarif_RS"`
-	Total_Tarif_BPJS float64    `gorm:"column:Total_Klaim"`
-	Billing_sign     string     `gorm:"column:Billing_Sign"`
+	ID_Billing       int        `gorm:"column:ID_Billing;primaryKey;autoIncrement" json:"id_billing"`
+	ID_Pasien        int        `gorm:"column:ID_Pasien" json:"id_pasien"`
+	Cara_Bayar       string     `gorm:"column:Cara_Bayar" json:"cara_bayar"`
+	Tanggal_masuk    *time.Time `gorm:"column:Tanggal_Masuk" json:"tanggal_masuk"`
+	Tanggal_keluar   *time.Time `gorm:"column:Tanggal_Keluar" json:"tanggal_keluar"`
+	Total_Tarif_RS   float64    `gorm:"column:Total_Tarif_RS" json:"total_tarif_rs"`
+	Total_Tarif_BPJS float64    `gorm:"column:Total_Klaim" json:"total_klaim"`
+	Billing_sign     string     `gorm:"column:Billing_Sign" json:"billing_sign"`
 }
 
 type Cara_bayar string
@@ -179,22 +179,22 @@ type BillingRequest struct {
 	// Tanggal_Keluar sekarang diisi oleh Admin Billing, bukan dokter/ruangan
 	// Field ini boleh kosong saat POST dari FE dokter
 	Tanggal_Keluar string   `json:"tanggal_keluar"`
-	ICD9           []string `json:"icd9" binding:"required"`
+	ICD9           []string `json:"icd9"`
 	ICD10          []string `json:"icd10" binding:"required"`
 	Cara_Bayar     string   `json:"cara_bayar" binding:"required"`
 	Total_Tarif_RS float64  `json:"total_tarif_rs"`
 }
 
-// admin ruangan
+// admin ruangan //Admin_Ruangan
 
-type admin_ruangan struct {
+type Admin_Ruangan struct {
 	ID_Admin   int    `gorm:"column:ID_Admin"`
 	Nama_Admin string `gorm:"column:Nama_Admin"`
 	Password   string `gorm:"column:Password"`
 	ID_Ruangan string `gorm:"column:ID_Ruangan"`
 }
 
-func (admin_ruangan) TableName() string {
+func (Admin_Ruangan) TableName() string {
 	return "admin_ruangan"
 }
 

@@ -42,12 +42,18 @@ func RegisterRoutes(r *gin.Engine) {
 	r.GET("/billing/aktif", GetBillingAktifByNamaHandler)
 	// Admin: get all billing
 	r.GET("/admin/billing", GetAllBillingHandler)
+	// Admin: get billing by ID
+	r.GET("/admin/billing/:id", GetBillingByIDHandler)
 	// Admin: post INACBG
 	r.POST("/admin/inacbg", PostINACBGAdminHandler)
+	// Admin: get ruangan dengan pasien
+	r.GET("/admin/ruangan-dengan-pasien", GetRuanganWithPasienHandler)
 	// Login dokter
 	r.POST("/login", LoginDokterHandler(database.DB))
 	// Test email
 	r.POST("/test/email", SendEmailTestHandler)
+	// login admin
+	r.POST("/admin/login", LoginAdminHandler(database.DB))
 }
 
 // Health check
@@ -65,6 +71,25 @@ func healthHandler(c *gin.Context) {
 func GetAllBillingHandler(c *gin.Context) {
 
 	data, err := services.GetAllBilling(database.DB)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data":   data,
+	})
+}
+
+// Get billing by ID for admin
+func GetBillingByIDHandler(c *gin.Context) {
+	id := c.Param("id")
+
+	data, err := services.GetBillingByID(database.DB, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status":  "error",
@@ -269,6 +294,19 @@ func listRuanganHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
+// GetRuanganWithPasienHandler - Get ruangan yang punya pasien
+func GetRuanganWithPasienHandler(c *gin.Context) {
+	data, err := services.GetRuanganWithPasien(database.DB)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Gagal mengambil data",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
 // dokter
 func listDokterHandler(c *gin.Context) {
 	data, err := services.GetDokter()
@@ -426,7 +464,7 @@ func GetBillingAktifByNamaHandler(c *gin.Context) {
 		return
 	}
 
-	billing, tindakan, icd9, icd10, dokter, err := services.GetBillingDetailAktifByNama(nama)
+	billing, tindakan, icd9, icd10, dokter, inacbgRI, inacbgRJ, err := services.GetBillingDetailAktifByNama(nama)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -453,6 +491,8 @@ func GetBillingAktifByNamaHandler(c *gin.Context) {
 			"icd9":        icd9,
 			"icd10":       icd10,
 			"dokter":      dokter,
+			"inacbg_ri":   inacbgRI,
+			"inacbg_rj":   inacbgRJ,
 		},
 	})
 }
@@ -558,4 +598,65 @@ func SendEmailTestHandler(c *gin.Context) {
 		"status":  "success",
 		"message": "Email test berhasil dikirim ke stylohype685@gmail.com dan pasaribumonica2@gmail.com",
 	})
+}
+
+func LoginAdminHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			Nama_Admin string `json:"Nama_Admin" binding:"required"`
+			Password   string `json:"Password" binding:"required"`
+		}
+
+		// Bind & validate
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Nama_Admin dan Password harus diisi",
+			})
+			return
+		}
+
+		// Trim dan normalize input
+		namaAdmin := strings.TrimSpace(req.Nama_Admin)
+		if namaAdmin == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Nama_Admin tidak boleh kosong",
+			})
+			return
+		}
+
+		// Query admin_ruangan dengan case-insensitive
+		var admin models.Admin_Ruangan //Admin_Ruangan
+		if err := db.Where("LOWER(Nama_Admin) = ?", strings.ToLower(namaAdmin)).First(&admin).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Admin tidak ditemukan",
+			})
+			return
+		}
+
+		// Check password
+		if admin.Password != req.Password {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Password salah",
+			})
+			return
+		}
+
+		// Generate token & return
+		token, err := middleware.GenerateTokenAdmin(admin, req.Nama_Admin)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Gagal membuat token",
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"token":  token,
+			"admin": gin.H{
+				"id":         admin.ID_Admin,
+				"nama_admin": admin.Nama_Admin,
+				"id_ruangan": admin.ID_Ruangan,
+			},
+		})
+	}
 }

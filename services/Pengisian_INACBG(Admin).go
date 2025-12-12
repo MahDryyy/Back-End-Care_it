@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -12,14 +13,20 @@ import (
 )
 
 func Post_INACBG_Admin(db *gorm.DB, input models.Post_INACBG_Admin) error {
+	// Debug log
+	log.Printf("[INACBG] Input received: ID_Billing=%d, Tipe=%s, Kode_count=%d, Total_klaim=%.2f, BillingSign=%s\n",
+		input.ID_Billing, input.Tipe_inacbg, len(input.Kode_INACBG), input.Total_klaim, input.Billing_sign)
+
 	tx := db.Begin()
 	if tx.Error != nil {
+		log.Printf("[INACBG] Error starting transaction: %v\n", tx.Error)
 		return tx.Error
 	}
 
 	// Ensure rollback on panic / unexpected error
 	defer func() {
 		if r := recover(); r != nil {
+			log.Printf("[INACBG] Panic recovered: %v\n", r)
 			tx.Rollback()
 		}
 	}()
@@ -27,11 +34,15 @@ func Post_INACBG_Admin(db *gorm.DB, input models.Post_INACBG_Admin) error {
 	// Validate input
 	if input.Tipe_inacbg != "RI" && input.Tipe_inacbg != "RJ" {
 		tx.Rollback()
-		return errors.New("invalid tipe_inacbg: must be 'RI' or 'RJ'")
+		err := errors.New("invalid tipe_inacbg: must be 'RI' or 'RJ'")
+		log.Printf("[INACBG] Validation error: %v\n", err)
+		return err
 	}
 	if len(input.Kode_INACBG) == 0 {
 		tx.Rollback()
-		return errors.New("Kode_INACBG tidak boleh kosong")
+		err := errors.New("Kode_INACBG tidak boleh kosong")
+		log.Printf("[INACBG] Validation error: %v\n", err)
+		return err
 	}
 
 	// 1. Ambil billing dulu untuk dapatkan total klaim lama
@@ -39,13 +50,19 @@ func Post_INACBG_Admin(db *gorm.DB, input models.Post_INACBG_Admin) error {
 	if err := tx.Where("ID_Billing = ?", input.ID_Billing).First(&existingBilling).Error; err != nil {
 		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("billing dengan ID_Billing=%d tidak ditemukan", input.ID_Billing)
+			err = fmt.Errorf("billing dengan ID_Billing=%d tidak ditemukan", input.ID_Billing)
+			log.Printf("[INACBG] %v\n", err)
+			return err
 		}
+		log.Printf("[INACBG] Error fetching billing: %v\n", err)
 		return fmt.Errorf("gagal mengambil billing: %w", err)
 	}
 
+	log.Printf("[INACBG] Found billing: ID=%d, Current_Total_Klaim=%.2f\n", existingBilling.ID_Billing, existingBilling.Total_Tarif_BPJS)
+
 	// Hitung total klaim baru = lama + tambahan
 	newTotalKlaim := existingBilling.Total_Tarif_BPJS + input.Total_klaim
+	log.Printf("[INACBG] New total klaim: %.2f + %.2f = %.2f\n", existingBilling.Total_Tarif_BPJS, input.Total_klaim, newTotalKlaim)
 
 	// Parse Tanggal_Keluar jika diisi oleh admin
 	var keluarPtr *time.Time
@@ -59,23 +76,28 @@ func Post_INACBG_Admin(db *gorm.DB, input models.Post_INACBG_Admin) error {
 			if err == nil {
 				t := parsed
 				keluarPtr = &t
+				log.Printf("[INACBG] Parsed tanggal_keluar: %v\n", t)
 				break
 			}
 		}
 		if keluarPtr == nil {
 			tx.Rollback()
-			return fmt.Errorf("invalid tanggal_keluar format: %s", input.Tanggal_keluar)
+			err := fmt.Errorf("invalid tanggal_keluar format: %s", input.Tanggal_keluar)
+			log.Printf("[INACBG] %v\n", err)
+			return err
 		}
 	}
 
 	// 2. Update total klaim kumulatif, billing_sign, dan tanggal keluar (jika diisi)
 	updateData := map[string]interface{}{
-		"Total_klaim":  newTotalKlaim,
-		"Billing_sign": input.Billing_sign,
+		"Total_Klaim":  newTotalKlaim,
+		"Billing_Sign": input.Billing_sign,
 	}
 	if keluarPtr != nil {
 		updateData["Tanggal_Keluar"] = keluarPtr
 	}
+
+	log.Printf("[INACBG] Update data: %v\n", updateData)
 
 	res := tx.Model(&models.BillingPasien{}).
 		Where("ID_Billing = ?", input.ID_Billing).
@@ -83,8 +105,11 @@ func Post_INACBG_Admin(db *gorm.DB, input models.Post_INACBG_Admin) error {
 
 	if res.Error != nil {
 		tx.Rollback()
+		log.Printf("[INACBG] Error updating billing: %v\n", res.Error)
 		return fmt.Errorf("gagal update billing: %w", res.Error)
 	}
+
+	log.Printf("[INACBG] Updated %d rows in billing_pasien\n", res.RowsAffected)
 
 	// 3. Bulk insert kode INACBG berdasarkan tipe_inacbg
 	switch input.Tipe_inacbg {
@@ -117,8 +142,11 @@ func Post_INACBG_Admin(db *gorm.DB, input models.Post_INACBG_Admin) error {
 
 	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
+		log.Printf("[INACBG] Error committing transaction: %v\n", err)
 		return err
 	}
+
+	log.Printf("[INACBG] ✅ Successfully saved INACBG for ID_Billing=%d, billing_sign=%s\n", input.ID_Billing, input.Billing_sign)
 
 	// 4. Kirim email ke dokter jika billing_sign tidak kosong
 	if input.Billing_sign != "" && strings.TrimSpace(input.Billing_sign) != "" {
@@ -291,6 +319,31 @@ func GetAllBilling(db *gorm.DB) ([]models.Request_Admin_Inacbg, error) {
 		}
 
 		result = append(result, item)
+	}
+
+	return result, nil
+}
+
+// GetBillingByID - Get specific billing data by ID
+func GetBillingByID(db *gorm.DB, id string) (map[string]interface{}, error) {
+	var billing models.BillingPasien
+
+	if err := db.Where("ID_Billing = ?", id).First(&billing).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("billing dengan ID=%s tidak ditemukan", id)
+		}
+		return nil, fmt.Errorf("gagal mengambil billing: %w", err)
+	}
+
+	result := map[string]interface{}{
+		"id_billing":     billing.ID_Billing,
+		"id_pasien":      billing.ID_Pasien,
+		"cara_bayar":     billing.Cara_Bayar,
+		"tanggal_masuk":  billing.Tanggal_masuk,
+		"tanggal_keluar": billing.Tanggal_keluar,
+		"total_tarif_rs": billing.Total_Tarif_RS,
+		"total_klaim":    billing.Total_Tarif_BPJS,
+		"billing_sign":   billing.Billing_sign,
 	}
 
 	return result, nil

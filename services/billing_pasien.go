@@ -61,12 +61,13 @@ func SearchPasienByNama(nama string) ([]models.Pasien, error) {
 	return pasien, nil
 }
 
-// GetBillingDetailAktifByNama mengambil billing terakhir + semua tindakan & ICD & dokter untuk satu pasien (by nama)
-func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []string, []string, []string, []string, error) {
+// GetBillingDetailAktifByNama mengambil billing terakhir + semua tindakan & ICD & dokter & INACBG untuk satu pasien (by nama)
+// Return: billing, tindakan, icd9, icd10, dokter, inacbgRI, inacbgRJ, error
+func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []string, []string, []string, []string, []string, []string, error) {
 	// Cari pasien dulu
 	var pasien models.Pasien
 	if err := database.DB.Where("Nama_Pasien = ?", namaPasien).First(&pasien).Error; err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, err
 	}
 
 	// Cari billing terakhir pasien ini (paling baru berdasarkan ID_Billing)
@@ -75,20 +76,20 @@ func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []st
 		Where("ID_Pasien = ?", pasien.ID_Pasien).
 		Order("ID_Billing DESC").
 		First(&billing).Error; err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, err
 	}
 
 	// Ambil semua tindakan (join billing_tindakan -> tarif_rs)
 	var tindakanJoin []struct {
 		Nama string `gorm:"column:Tindakan_RS"`
 	}
-	if err := database.DB.
+		if err := database.DB.
 		Table("billing_tindakan bt").
 		Select("tr.Tindakan_RS").
 		Joins("JOIN tarif_rs tr ON bt.ID_Tarif_RS = tr.ID_Tarif_RS").
 		Where("bt.ID_Billing = ?", billing.ID_Billing).
 		Scan(&tindakanJoin).Error; err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, err
 	}
 	tindakanNames := make([]string, 0, len(tindakanJoin))
 	for _, t := range tindakanJoin {
@@ -99,13 +100,13 @@ func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []st
 	var icd9Join []struct {
 		Prosedur string `gorm:"column:Prosedur"`
 	}
-	if err := database.DB.
+		if err := database.DB.
 		Table("billing_icd9 bi").
 		Select("i.Prosedur").
 		Joins("JOIN icd9 i ON bi.ID_ICD9 = i.ID_ICD9").
 		Where("bi.ID_Billing = ?", billing.ID_Billing).
 		Scan(&icd9Join).Error; err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, err
 	}
 	icd9Names := make([]string, 0, len(icd9Join))
 	for _, i := range icd9Join {
@@ -116,13 +117,13 @@ func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []st
 	var icd10Join []struct {
 		Diagnosa string `gorm:"column:Diagnosa"`
 	}
-	if err := database.DB.
+		if err := database.DB.
 		Table("billing_icd10 bi").
 		Select("i.Diagnosa").
 		Joins("JOIN icd10 i ON bi.ID_ICD10 = i.ID_ICD10").
 		Where("bi.ID_Billing = ?", billing.ID_Billing).
 		Scan(&icd10Join).Error; err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, err
 	}
 	icd10Names := make([]string, 0, len(icd10Join))
 	for _, i := range icd10Join {
@@ -134,21 +135,53 @@ func GetBillingDetailAktifByNama(namaPasien string) (*models.BillingPasien, []st
 		Nama    string     `gorm:"column:Nama_Dokter"`
 		Tanggal *time.Time `gorm:"column:Tanggal"`
 	}
-	if err := database.DB.
+		if err := database.DB.
 		Table("billing_dokter bd").
 		Select("d.Nama_Dokter, bd.Tanggal").
 		Joins("JOIN dokter d ON bd.ID_Dokter = d.ID_Dokter").
 		Where("bd.ID_Billing = ?", billing.ID_Billing).
 		Order("bd.Tanggal ASC").
 		Scan(&dokterJoin).Error; err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, err
 	}
 	dokterNames := make([]string, 0, len(dokterJoin))
 	for _, d := range dokterJoin {
 		dokterNames = append(dokterNames, d.Nama)
 	}
 
-	return &billing, tindakanNames, icd9Names, icd10Names, dokterNames, nil
+	// Ambil semua INACBG RI
+	var inacbgRIJoin []struct {
+		Kode string `gorm:"column:ID_INACBG_RI"`
+	}
+	if err := database.DB.
+		Table("billing_inacbg_ri").
+		Select("ID_INACBG_RI").
+		Where("ID_Billing = ?", billing.ID_Billing).
+		Scan(&inacbgRIJoin).Error; err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, err
+	}
+	inacbgRINames := make([]string, 0, len(inacbgRIJoin))
+	for _, row := range inacbgRIJoin {
+		inacbgRINames = append(inacbgRINames, row.Kode)
+	}
+
+	// Ambil semua INACBG RJ
+	var inacbgRJJoin []struct {
+		Kode string `gorm:"column:ID_INACBG_RJ"`
+	}
+	if err := database.DB.
+		Table("billing_inacbg_rj").
+		Select("ID_INACBG_RJ").
+		Where("ID_Billing = ?", billing.ID_Billing).
+		Scan(&inacbgRJJoin).Error; err != nil {
+		return nil, nil, nil, nil, nil, nil, nil, err
+	}
+	inacbgRJNames := make([]string, 0, len(inacbgRJJoin))
+	for _, row := range inacbgRJJoin {
+		inacbgRJNames = append(inacbgRJNames, row.Kode)
+	}
+
+	return &billing, tindakanNames, icd9Names, icd10Names, dokterNames, inacbgRINames, inacbgRJNames, nil
 }
 
 // GetDokterByNama mencari dokter berdasarkan nama

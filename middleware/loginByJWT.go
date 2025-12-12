@@ -42,6 +42,21 @@ func GenerateToken(dokter models.Dokter, email string) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
+// GenerateTokenAdmin membuat JWT yang berlaku 24 jam untuk admin.
+func GenerateTokenAdmin(admin models.Admin_Ruangan, namaAdmin string) (string, error) {
+	claims := jwt.MapClaims{
+		"id":         admin.ID_Admin,
+		"nama_admin": admin.Nama_Admin,
+		"id_ruangan": admin.ID_Ruangan,
+		"role":       "admin",
+		"exp":        time.Now().Add(24 * time.Hour).Unix(),
+		"iat":        time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
+}
+
 // AuthMiddleware memvalidasi header Authorization Bearer <token> dan
 // menyimpan data dokter pada context jika token valid.
 func AuthMiddleware() gin.HandlerFunc {
